@@ -7,15 +7,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role { USER ADMIN }
-enum LobbyPlayerStatus { ALIVE SPECTATOR KICKED TIMEOUT }
-enum Outcome { WIN LOSE KICKED TIMEOUT SPECTATOR }
-enum SceneLayerKind { SKY MID GROUND FOREGROUND }
+enum Role {
+  USER
+  ADMIN
+}
+
+enum LobbyPlayerStatus {
+  REGISTERED
+  ALIVE
+  EXPELLED
+  SPECTATOR
+  DISCONNECTED
+}
+
+enum Outcome {
+  WIN
+  LOSE
+  KICKED
+  TIMEOUT
+  SPECTATOR
+}
+
+enum SceneLayerKind {
+  SKY
+  MID
+  GROUND
+  FOREGROUND
+}
 
 model User {
-  id          String   @id @default(uuid())
-  twitchNick  String   @unique
-  role        Role     @default(USER)
+  id           String            @id @default(uuid())
+  twitchNick   String            @unique
+  role         Role              @default(USER)
   authAttempts AuthAttempt[]
   lobbyPlayers LobbyPlayer[]
   chatMessages SiteChatMessage[]
@@ -31,75 +54,76 @@ model AuthAttempt {
 }
 
 model Lobby {
-  id                  String @id @default(uuid())
-  isActive             Boolean @default(true)
-  playersLimit         Int
-  voteTimerSec         Int
-  revealTimerSec       Int
+  id                  String        @id @default(uuid())
+  isActive            Boolean       @default(true)
+  playersLimit        Int
+  voteTimerSec        Int
+  revealTimerSec      Int
   initialRevealedCount Int
-  phase                String
-  apocalypseTypeId     String?
+  phase               String
+  apocalypseTypeId    String?
   bunkerLocationTypeId String?
-  players              LobbyPlayer[]
+  players             LobbyPlayer[]
 }
 
 model LobbyPlayer {
-  id                String @id @default(uuid())
-  lobbyId            String
-  userId             String
-  status             LobbyPlayerStatus
-  lastSeenAt         DateTime @default(now())
-  reconnectDeadline  DateTime?
-  lobby              Lobby @relation(fields: [lobbyId], references: [id])
-  user               User @relation(fields: [userId], references: [id])
+  id               String            @id @default(uuid())
+  lobbyId          String
+  userId           String
+  status           LobbyPlayerStatus
+  lastSeenAt       DateTime          @default(now())
+  reconnectDeadline DateTime?
+  lobby            Lobby             @relation(fields: [lobbyId], references: [id])
+  user             User              @relation(fields: [userId], references: [id])
+
   @@unique([lobbyId, userId])
 }
 
 model PlayerCard {
-  id             String @id @default(uuid())
-  lobbyPlayerId  String @unique
-  genderAge      String
-  fertility      String
-  profession     String
-  phobia         String
-  health         String
-  hobby          String
-  luggage        String
-  fact1          String
-  fact2          String
-  actionCard1    String
-  actionCard2    String
+  id            String @id @default(uuid())
+  lobbyPlayerId String @unique
+  genderAge     String
+  fertility     String
+  profession    String
+  phobia        String
+  health        String
+  hobby         String
+  luggage       String
+  fact1         String
+  fact2         String
+  actionCard1   String
+  actionCard2   String
   revealedFields Json
 }
 
 model Game {
-  id            String @id @default(uuid())
+  id            String             @id @default(uuid())
   lobbyId       String
-  rounds        Int @default(0)
+  rounds        Int                @default(0)
   playerResults GamePlayerResult[]
 }
 
 model GamePlayerResult {
-  id             String @id @default(uuid())
+  id             String  @id @default(uuid())
   gameId         String
   userId         String
   roundsSurvived Int
   outcome        Outcome
-  game           Game @relation(fields: [gameId], references: [id])
+  game           Game    @relation(fields: [gameId], references: [id])
 }
 
 model BannedUser {
-  id         String @id @default(uuid())
-  twitchNick String @unique
+  id         String   @id @default(uuid())
+  twitchNick String   @unique
   createdAt  DateTime @default(now())
 }
 
 model SiteChatMessage {
-  id        String @id @default(uuid())
+  id        String   @id @default(uuid())
   userId    String
   message   String
   createdAt DateTime @default(now())
-  user      User @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
 }
 
 model ChatFilterWord {
@@ -107,58 +131,99 @@ model ChatFilterWord {
   word String @unique
 }
 
-model Profession { id String @id @default(uuid()) value String @unique }
-model Phobia { id String @id @default(uuid()) value String @unique }
-model Hobby { id String @id @default(uuid()) value String @unique }
-model Luggage { id String @id @default(uuid()) value String @unique }
-model Fact { id String @id @default(uuid()) value String @unique }
-model Health { id String @id @default(uuid()) value String severity String? }
-model ActionCard { id String @id @default(uuid()) type String targetField String? upgradeText String? }
+model Profession {
+  id    String @id @default(uuid())
+  value String @unique
+}
+
+model Phobia {
+  id    String @id @default(uuid())
+  value String @unique
+}
+
+model Hobby {
+  id    String @id @default(uuid())
+  value String @unique
+}
+
+model Luggage {
+  id    String @id @default(uuid())
+  value String @unique
+}
+
+model Fact {
+  id    String @id @default(uuid())
+  value String @unique
+}
+
+model Health {
+  id       String @id @default(uuid())
+  value    String
+  severity String?
+}
+
+model ActionCard {
+  id          String @id @default(uuid())
+  type        String
+  targetField String?
+  upgradeText String?
+}
 
 model CosmeticItem {
   id           String @id @default(uuid())
   type         String
   assetKey     String
-  requiredWins Int @default(0)
+  requiredWins Int    @default(0)
 }
 
 model UserCosmetics {
-  id         String @id @default(uuid())
-  userId      String
-  skinColor   String?
-  face        String?
-  hair        String?
-  hat         String?
-  pet         String?
-  clothes     String?
-  user        User @relation(fields: [userId], references: [id])
+  id       String  @id @default(uuid())
+  userId   String
+  skinColor String?
+  face     String?
+  hair     String?
+  hat      String?
+  pet      String?
+  clothes  String?
+  user     User    @relation(fields: [userId], references: [id])
+
   @@unique([userId])
 }
 
-model ApocalypseType { id String @id @default(uuid()) name String @unique presets ScenePreset[] }
-model BunkerLocationType { id String @id @default(uuid()) name String @unique presets ScenePreset[] }
+model ApocalypseType {
+  id      String        @id @default(uuid())
+  name    String        @unique
+  presets ScenePreset[]
+}
+
+model BunkerLocationType {
+  id      String        @id @default(uuid())
+  name    String        @unique
+  presets ScenePreset[]
+}
 
 model ScenePreset {
-  id                   String @id @default(uuid())
+  id                   String             @id @default(uuid())
   apocalypseTypeId     String
   bunkerLocationTypeId String
   groundYPercent       Int
-  apocalypseType       ApocalypseType @relation(fields: [apocalypseTypeId], references: [id])
+  apocalypseType       ApocalypseType     @relation(fields: [apocalypseTypeId], references: [id])
   bunkerLocationType   BunkerLocationType @relation(fields: [bunkerLocationTypeId], references: [id])
   layers               SceneLayer[]
+
   @@unique([apocalypseTypeId, bunkerLocationTypeId])
 }
 
 model SceneLayer {
-  id             String @id @default(uuid())
+  id             String         @id @default(uuid())
   scenePresetId  String
   kind           SceneLayerKind
   assetKey       String
   zIndex         Int
-  offsetX        Int @default(0)
-  offsetY        Int @default(0)
-  scale          Float @default(1)
-  repeatX        Boolean @default(false)
+  offsetX        Int            @default(0)
+  offsetY        Int            @default(0)
+  scale          Float          @default(1)
+  repeatX        Boolean        @default(false)
   groundYPercent Int?
-  scenePreset    ScenePreset @relation(fields: [scenePresetId], references: [id])
+  scenePreset    ScenePreset    @relation(fields: [scenePresetId], references: [id])
 }
