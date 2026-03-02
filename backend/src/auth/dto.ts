@@ -7,3 +7,10 @@ export class RequestCodeDto {
   @Length(1, 50)
   twitchNick!: string;
 }
+
+export class ConfirmAuthDto {
+  @ApiProperty()
+  @IsString()
+  @Length(1, 50)
+  twitchNick!: string;
+}

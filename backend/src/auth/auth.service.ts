@@ -1,4 +1,4 @@
-import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Role } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
@@ -40,11 +40,37 @@ export class AuthService {
     if (attempt.twitchNick.toLowerCase() !== normalizedNick) return null;
     this.logger.log(`[Twitch] matched attempt id=${attempt.id} nick=${senderNick}`);
 
+    await this.prisma.authAttempt.update({ where: { id: attempt.id }, data: { consumedAt: new Date() } });
+    return attempt;
+  }
+
+  async confirm(twitchNick: string) {
+    const normalizedNick = twitchNick.toLowerCase();
+    const attempt = await this.prisma.authAttempt.findFirst({
+      where: { twitchNick: { equals: normalizedNick, mode: 'insensitive' } },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    if (!attempt) throw new NotFoundException('Auth attempt not found');
+    if (!attempt.consumedAt) return null;
+
     const admins = (this.cfg.get<string>('ADMINS') ?? '').split(',').filter(Boolean);
     const role = admins.some((admin) => admin.toLowerCase() === normalizedNick) ? Role.ADMIN : Role.USER;
-    const user = await this.prisma.user.upsert({ where: { twitchNick: attempt.twitchNick }, update: { role }, create: { twitchNick: attempt.twitchNick, role } });
-    await this.prisma.authAttempt.update({ where: { id: attempt.id }, data: { consumedAt: new Date() } });
-    return this.sign(user.id, user.twitchNick, user.role);
+    const user = await this.prisma.user.upsert({
+      where: { twitchNick: attempt.twitchNick },
+      update: { role },
+      create: { twitchNick: attempt.twitchNick, role }
+    });
+    const accessToken = this.sign(user.id, user.twitchNick, user.role);
+
+    return {
+      accessToken,
+      user: {
+        id: user.id,
+        twitchNick: user.twitchNick,
+        role: user.role
+      }
+    };
   }
 
   sign(userId: string, twitchNick: string, role: Role) {

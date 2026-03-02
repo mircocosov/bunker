@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api/client';
+import { useAuthStore } from '../store/auth';
 
 export function LoginPage() {
   const [nick, setNick] = useState('');
@@ -7,6 +9,9 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const refreshTimerRef = useRef<number | null>(null);
+  const pollingRef = useRef<number | null>(null);
+  const navigate = useNavigate();
+  const setToken = useAuthStore((s) => s.setToken);
 
   const clearRefreshTimer = () => {
     if (refreshTimerRef.current !== null) {
@@ -15,16 +20,46 @@ export function LoginPage() {
     }
   };
 
+  const stopPolling = () => {
+    if (pollingRef.current !== null) {
+      window.clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  };
+
+  const confirmAuth = async (twitchNick: string) => {
+    try {
+      const res = await api.post('/auth/confirm', { twitchNick }, { validateStatus: (status) => status === 200 || status === 204 || status === 404 });
+      if (res.status !== 200 || !res.data?.accessToken) return;
+
+      stopPolling();
+      clearRefreshTimer();
+      setToken(res.data.accessToken);
+      navigate('/');
+    } catch {
+      // Ignore transient polling errors.
+    }
+  };
+
+  const startPolling = (twitchNick: string) => {
+    stopPolling();
+    pollingRef.current = window.setInterval(() => {
+      void confirmAuth(twitchNick);
+    }, 1000);
+  };
+
   const request = async () => {
     try {
       setLoading(true);
       setError('');
+      stopPolling();
       const { data } = await api.post('/auth/request-code', { twitchNick: nick });
       setCode(data.code);
       clearRefreshTimer();
       refreshTimerRef.current = window.setTimeout(() => {
         void request();
       }, data.ttlMs ?? 15000);
+      startPolling(nick);
     } catch {
       setError('Не удалось получить код. Попробуйте ещё раз.');
     } finally {
@@ -32,7 +67,10 @@ export function LoginPage() {
     }
   };
 
-  useEffect(() => () => clearRefreshTimer(), []);
+  useEffect(() => () => {
+    clearRefreshTimer();
+    stopPolling();
+  }, []);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950 p-6">
