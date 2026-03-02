@@ -1,7 +1,7 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { RequestCodeDto } from './dto';
+import { ConfirmAuthDto, RequestCodeDto } from './dto';
 import { JwtAuthGuard } from './guards';
 
 @ApiTags('auth')
@@ -12,6 +12,18 @@ export class AuthController {
   @Post('request-code')
   requestCode(@Body() dto: RequestCodeDto) {
     return this.auth.requestCode(dto.twitchNick);
+  }
+
+
+  @Post('confirm')
+  @HttpCode(200)
+  async confirm(@Body() dto: ConfirmAuthDto, @Res({ passthrough: true }) res: { status: (code: number) => unknown }) {
+    const confirmed = await this.auth.confirm(dto.twitchNick);
+    if (!confirmed) {
+      res.status(204);
+      return;
+    }
+    return confirmed;
   }
 
   @Get('/me')
