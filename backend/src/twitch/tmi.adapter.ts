@@ -1,13 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import tmi, { ChatUserstate } from 'tmi.js';
+import tmi, { ChatUserstate, Client } from 'tmi.js';
 import { ChatMessage, TwitchChatAdapter, TwitchDebugState } from './twitch.adapter';
 
 @Injectable()
 export class TmiChatAdapter implements TwitchChatAdapter {
   private readonly logger = new Logger(TmiChatAdapter.name);
   private handlers: Array<(msg: ChatMessage) => Promise<void> | void> = [];
-  private client: tmi.Client | null = null;
+  private client: Client | null = null;
   private channel: string | null = null;
   private connected = false;
   private lastMessageAt: string | null = null;
