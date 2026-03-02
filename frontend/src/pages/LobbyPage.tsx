@@ -59,6 +59,13 @@ export function LobbyPage() {
   const [isRegistered, setIsRegistered] = useState(false);
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [showStartModal, setShowStartModal] = useState(false);
+  const [startForm, setStartForm] = useState({
+    playersLimit: '8',
+    apocalypseTypeId: 'random',
+    bunkerLocationTypeId: 'random',
+    environment: 'random'
+  });
 
   const isAdmin = useMemo(() => decodeRoleFromToken(token) === 'ADMIN', [token]);
 
@@ -140,6 +147,22 @@ export function LobbyPage() {
     }
   };
 
+  const createLobby = async () => {
+    if (!token || !isAdmin) return;
+
+    await api.post('/lobby', {
+      playersLimit: Number(startForm.playersLimit) || 8,
+      voteTimerSec: 60,
+      revealTimerSec: 30,
+      initialRevealedCount: 1,
+      apocalypseTypeId: startForm.apocalypseTypeId === 'random' ? undefined : startForm.apocalypseTypeId,
+      bunkerLocationTypeId: startForm.bunkerLocationTypeId === 'random' ? undefined : startForm.bunkerLocationTypeId
+    });
+
+    setShowStartModal(false);
+    setRegistrationOpen(true);
+  };
+
   return (
     <PcOnlyGuard>
       <GameLayoutDesktop
@@ -151,10 +174,49 @@ export function LobbyPage() {
             <HudOverlay phase="VOTE" timerSec={86} />
             {registrationOpen && !isRegistered && (
               <div className="absolute inset-0 z-20 grid place-items-center">
-                <button className="btn-primary px-10 py-4 text-xl" onClick={register}>Зарегистрироваться</button>
+                <button className="btn-primary px-10 py-4 text-xl" onClick={isAdmin ? () => setShowStartModal(true) : register}>{isAdmin ? 'Начать игру' : 'Зарегистрироваться'}</button>
               </div>
             )}
             {isRegistered && <p className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2 rounded-full border border-emerald-400/30 bg-emerald-950/60 px-4 py-2 text-sm">Вы зарегистрированы</p>}
+            {showStartModal && (
+              <div className="absolute inset-0 z-30 grid place-items-center bg-black/70 p-4">
+                <div className="panel w-full max-w-xl space-y-3">
+                  <h3 className="text-lg font-semibold">Параметры старта игры</h3>
+                  <label className="field">
+                    Количество игроков для старта
+                    <input className="input" type="number" min={2} max={20} value={startForm.playersLimit} onChange={(e) => setStartForm((prev) => ({ ...prev, playersLimit: e.target.value }))} />
+                  </label>
+                  <label className="field">
+                    Апокалипсис
+                    <select className="input" value={startForm.apocalypseTypeId} onChange={(e) => setStartForm((prev) => ({ ...prev, apocalypseTypeId: e.target.value }))}>
+                      <option value="random">Рандом</option>
+                      <option value="id-1">Ядерная зима</option>
+                      <option value="id-2">Зомби-вирус</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    Расположение бункера
+                    <select className="input" value={startForm.bunkerLocationTypeId} onChange={(e) => setStartForm((prev) => ({ ...prev, bunkerLocationTypeId: e.target.value }))}>
+                      <option value="random">Рандом</option>
+                      <option value="id-1">Горная база</option>
+                      <option value="id-2">Промзона</option>
+                    </select>
+                  </label>
+                  <label className="field">
+                    Окружение
+                    <select className="input" value={startForm.environment} onChange={(e) => setStartForm((prev) => ({ ...prev, environment: e.target.value }))}>
+                      <option value="random">Рандом</option>
+                      <option value="acid-rain">Кислотные дожди</option>
+                      <option value="extreme-cold">Экстремальный холод</option>
+                    </select>
+                  </label>
+                  <div className="flex justify-end gap-2">
+                    <button className="btn-secondary" onClick={() => setShowStartModal(false)}>Отмена</button>
+                    <button className="btn-primary" onClick={createLobby}>Запустить</button>
+                  </div>
+                </div>
+              </div>
+            )}
           </CenterScene>
         }
         right={<RightSidebarPlayers players={demoPlayers} isAdmin={isAdmin} />}

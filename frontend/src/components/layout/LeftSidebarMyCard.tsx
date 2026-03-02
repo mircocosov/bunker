@@ -27,7 +27,7 @@ export function LeftSidebarMyCard() {
       </div>
 
       <h4 className="mt-2 font-semibold">Моя карточка</h4>
-      <div className="mt-1 space-y-1.5 pr-1">
+      <div className="mt-1 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
         {fields.map((field) => (
           <div key={field.key} className="rounded-xl border border-white/10 bg-white/5 p-1.5">
             <div className="flex items-center justify-between gap-2">

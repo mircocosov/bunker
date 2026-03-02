@@ -1,53 +1,60 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
-import { AdminShell } from '../components/layout/AdminShell';
+import { AdminSection, AdminShell } from '../components/layout/AdminShell';
 
 type CrudItem = Record<string, any> & { id: string };
 
 type PoolConfig = { key: string; label: string; fields: string[] };
 
-const poolConfigs: PoolConfig[] = [
+const statPools: PoolConfig[] = [
   { key: 'professions', label: 'Профессии', fields: ['value'] },
   { key: 'phobias', label: 'Фобии', fields: ['value'] },
   { key: 'hobbies', label: 'Хобби', fields: ['value'] },
   { key: 'luggage', label: 'Багаж', fields: ['value'] },
   { key: 'facts', label: 'Факты', fields: ['value'] },
-  { key: 'health', label: 'Здоровье', fields: ['value', 'severity'] },
-  { key: 'actionCards', label: 'Карты', fields: ['type', 'targetField', 'upgradeText'] },
-  { key: 'apocalypseTypes', label: 'Сцены: апокалипсис', fields: ['name'] },
-  { key: 'bunkerLocations', label: 'Сцены: локации', fields: ['name'] }
+  { key: 'health', label: 'Здоровье', fields: ['value', 'severity'] }
 ];
 
 export function AdminPage() {
-  const [activePool, setActivePool] = useState(poolConfigs[0]);
+  const [activePool, setActivePool] = useState(statPools[0]);
 
-  const content = useMemo(
+  const content = useMemo<Record<AdminSection, JSX.Element>>(
     () => ({
-      lobby: <div><h1 className="text-xl font-semibold">Создание лобби</h1><p className="mt-2 text-sm text-[var(--text-muted)]">Настройки лобби оставлены без изменений.</p></div>,
-      control: <div><h1 className="text-xl font-semibold">Управление игрой</h1><p className="mt-2 text-sm text-[var(--text-muted)]">Kick игроков и переход фаз доступны через API.</p></div>,
-      pools: (
+      stats: (
         <div className="space-y-3">
+          <h1 className="text-xl font-semibold">Характеристики</h1>
           <div className="flex flex-wrap gap-2">
-            {poolConfigs.map((pool) => (
+            {statPools.map((pool) => (
               <button key={pool.key} className={`btn-secondary ${activePool.key === pool.key ? '!border-[var(--accent-cold)]' : ''}`} onClick={() => setActivePool(pool)}>{pool.label}</button>
             ))}
           </div>
           <CrudSection title={activePool.label} endpoint={`/admin/pools/${activePool.key}`} fields={activePool.fields} />
         </div>
       ),
-      actions: <CrudSection title="Карты действия" endpoint="/admin/pools/actionCards" fields={['type', 'targetField', 'upgradeText']} />,
-      scene: <CrudSection title="Сцены (типы апокалипсиса)" endpoint="/admin/pools/apocalypseTypes" fields={['name']} />,
-      filter: <CrudSection title="Запретные слова" endpoint="/admin/chat-filter" fields={['word']} />,
-      bans: <BansSection />
+      cards: <CrudSection title="Карты действий" endpoint="/admin/pools/actionCards" fields={['type', 'targetField', 'upgradeText']} />,
+      scenes: (
+        <div className="space-y-4">
+          <CrudSection title="Апокалипсис" endpoint="/admin/pools/apocalypseTypes" fields={['name']} />
+          <CrudSection title="Расположение бункера" endpoint="/admin/pools/bunkerLocations" fields={['name']} />
+        </div>
+      ),
+      filter: <CrudSection title="Фильтр-чата" endpoint="/admin/chat-filter" fields={['word']} />,
+      blacklist: <CrudSection title="Черный список" endpoint="/admin/bans" fields={['twitchNick']} deleteById onlyDelete />,
+      game: <GameAdminSection />
     }),
     [activePool]
   );
 
-  return <AdminShell content={content as any} />;
+  return <AdminShell content={content} />;
 }
 
-function BansSection() {
-  return <CrudSection title="Разбан игроков" endpoint="/admin/bans" fields={['twitchNick']} deleteById onlyDelete />;
+function GameAdminSection() {
+  return (
+    <div className="space-y-3">
+      <h1 className="text-xl font-semibold">Игра</h1>
+      <p className="text-sm text-[var(--text-muted)]">Раздел для управления игрой. Создание лобби и старт матча доступны на главной странице в кнопке «Начать игру» для админа.</p>
+    </div>
+  );
 }
 
 function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete = false }: { title: string; endpoint: string; fields: string[]; deleteById?: boolean; onlyDelete?: boolean }) {
@@ -81,7 +88,7 @@ function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete =
 
   return (
     <div className="space-y-3">
-      <h1 className="text-xl font-semibold">{title}</h1>
+      <h2 className="text-lg font-semibold">{title}</h2>
       {!onlyDelete && (
         <div className="rounded-xl border border-white/10 bg-black/20 p-3">
           <div className="grid gap-2 md:grid-cols-3">
@@ -105,3 +112,4 @@ function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete =
     </div>
   );
 }
+
