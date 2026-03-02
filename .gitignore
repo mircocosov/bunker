@@ -1,0 +1,19 @@
+# dependencies
+node_modules/
+
+# build outputs
+dist/
+coverage/
+
+# env
+backend/.env
+
+# local artifacts from checks (screenshots/videos/etc.)
+artifacts/
+playwright-report/
+*.log
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

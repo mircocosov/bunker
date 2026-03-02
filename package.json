@@ -1,0 +1,18 @@
+{
+  "name": "bunker",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "npm-run-all --parallel dev:backend dev:frontend",
+    "dev:backend": "npm --workspace backend run start:dev",
+    "dev:frontend": "npm --workspace frontend run dev",
+    "test": "npm --workspace backend run test",
+    "check:no-binaries": "bash ./scripts/check-no-binaries.sh"
+  },
+  "devDependencies": {
+    "npm-run-all": "^4.1.5"
+  }
+}
