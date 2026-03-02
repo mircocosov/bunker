@@ -12,6 +12,26 @@ NestJS приложение с Prisma и WS чатом.
 - `ADMINS=nick1,nick2`
 - `FRONTEND_URL=http://localhost:5173`
 
+Пример `.env`:
+
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/bunker?schema=public"
+JWT_SECRET="change-me"
+TWITCH_CHANNEL="your_channel"
+ADMINS="nick1,nick2"
+FRONTEND_URL="http://localhost:5173"
+```
+
+## Запуск (порядок)
+
+```bash
+cp .env.example .env
+# отредактировать .env
+npx prisma generate
+npx prisma migrate dev
+npm run start:dev
+```
+
 ## Основные фичи
 
 - Auth по 6-значному коду (TTL 15 сек) через Twitch чат.
