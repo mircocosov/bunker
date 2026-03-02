@@ -7,7 +7,7 @@ describe('AuthService code rules', () => {
     expect(code).toMatch(/^\d{6}$/);
   });
 
-  it('strict nickname comparison stays case-sensitive', () => {
-    expect('Nick').not.toBe('nick');
+  it('nickname comparison can be normalized to case-insensitive', () => {
+    expect('Nick'.toLowerCase()).toBe('nick');
   });
 });
