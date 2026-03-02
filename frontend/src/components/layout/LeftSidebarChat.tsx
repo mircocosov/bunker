@@ -7,6 +7,7 @@ type Props = {
   cooldownMs: number;
   cooldownUntil: number;
   connectionError: string | null;
+  sendError: string | null;
 };
 
 export function LeftSidebarChat(props: Props) {

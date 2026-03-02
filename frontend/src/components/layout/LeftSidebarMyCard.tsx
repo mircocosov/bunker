@@ -6,8 +6,12 @@ const initialFields: Field[] = [
   { key: 'genderAge', label: 'Пол + Возраст', value: 'Женщина, 29', opened: true },
   { key: 'profession', label: 'Профессия', value: 'Инженер-системотехник', opened: false },
   { key: 'health', label: 'Здоровье', value: 'Отличное', opened: false },
+  { key: 'phobia', label: 'Фобия', value: 'Клаустрофобия', opened: false },
   { key: 'hobby', label: 'Хобби', value: 'Ремонт раций', opened: false },
-  { key: 'fact', label: 'Факт', value: 'Победитель соревнований по выживанию', opened: false }
+  { key: 'fact', label: 'Факт', value: 'Победитель соревнований по выживанию', opened: false },
+  { key: 'baggage', label: 'Багаж', value: 'Аптечка + мультитул', opened: false },
+  { key: 'eventOne', label: 'Карточка события #1', value: 'Улучшение: +1 место в бункере', opened: false },
+  { key: 'eventTwo', label: 'Карточка события #2', value: 'Улучшение: запас воды +20%', opened: false }
 ];
 
 export function LeftSidebarMyCard() {
@@ -17,22 +21,22 @@ export function LeftSidebarMyCard() {
 
   return (
     <section className="panel flex h-full min-h-0 flex-col">
-      <h3 className="text-lg font-semibold">Мой персонаж</h3>
-      <div className="mt-2 rounded-xl border border-white/10 bg-black/30 p-3">
-        <div className="mx-auto h-24 w-16 rounded-md border border-white/20 bg-gradient-to-b from-zinc-500 to-zinc-700" />
+      <h3 className="text-base font-semibold">Мой персонаж</h3>
+      <div className="mt-1 rounded-xl border border-white/10 bg-black/30 p-2">
+        <div className="mx-auto h-16 w-12 rounded-md border border-white/20 bg-gradient-to-b from-zinc-500 to-zinc-700" />
       </div>
 
-      <h4 className="mt-3 font-semibold">Моя карточка</h4>
-      <div className="mt-2 flex-1 space-y-2 overflow-y-auto pr-1">
+      <h4 className="mt-2 font-semibold">Моя карточка</h4>
+      <div className="mt-1 space-y-1.5 pr-1">
         {fields.map((field) => (
-          <div key={field.key} className="rounded-xl border border-white/10 bg-white/5 p-2">
+          <div key={field.key} className="rounded-xl border border-white/10 bg-white/5 p-1.5">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-xs text-[var(--text-muted)]">{field.label}</p>
-                <p className="text-sm">{field.opened ? field.value : 'Скрыто'}</p>
+                <p className="text-[11px] text-[var(--text-muted)]">{field.label}</p>
+                <p className="text-xs leading-tight">{field.opened ? field.value : 'Скрыто'}</p>
               </div>
               {!field.opened && (
-                <button className="btn-secondary px-2 py-1 text-xs" onClick={() => reveal(field.key)}>
+                <button className="btn-secondary px-2 py-0.5 text-[11px]" onClick={() => reveal(field.key)}>
                   Открыть
                 </button>
               )}

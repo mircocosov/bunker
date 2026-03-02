@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UiPlayer } from '../../types/ui';
 
 type Props = {
   players: UiPlayer[];
   votingEnabled?: boolean;
+  isAdmin?: boolean;
 };
 
 const badgeColor: Record<string, string> = {
@@ -15,8 +17,9 @@ const badgeColor: Record<string, string> = {
   fact: 'bg-slate-300/20 text-slate-100'
 };
 
-export function PlayersPanel({ players, votingEnabled = true }: Props) {
+export function PlayersPanel({ players, votingEnabled = true, isAdmin = false }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const navigate = useNavigate();
   const alive = players.filter((p) => p.status === 'ALIVE');
   const spectators = players.filter((p) => p.status === 'SPECTATOR');
   const selected = useMemo(() => players.find((x) => x.id === selectedId), [players, selectedId]);
@@ -28,7 +31,7 @@ export function PlayersPanel({ players, votingEnabled = true }: Props) {
         {selected && <p className="text-xs text-cyan-200">Ваш голос: #{selected.number} {selected.nick}</p>}
       </header>
 
-      <div className="h-[calc(100%-6.5rem)] space-y-2 overflow-y-auto pr-1">
+      <div className="h-[calc(100%-9.5rem)] space-y-2 overflow-y-auto pr-1">
         {players.map((player) => (
           <button
             key={player.id}
@@ -56,6 +59,12 @@ export function PlayersPanel({ players, votingEnabled = true }: Props) {
         <summary className="cursor-pointer text-sm">Наблюдатели ({spectators.length})</summary>
         <ul className="mt-1 text-sm text-[var(--text-muted)]">{spectators.map((s) => <li key={s.id}>{s.nick}</li>)}</ul>
       </details>
+
+      {isAdmin && (
+        <button className="btn-secondary mt-2 w-full" onClick={() => navigate('/admin')}>
+          Админ
+        </button>
+      )}
     </section>
   );
 }
