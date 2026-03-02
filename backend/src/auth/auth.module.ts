@@ -5,7 +5,6 @@ import { PassportModule } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtStrategy } from './jwt.strategy';
-import { TwitchModule } from '../twitch/twitch.module';
 
 @Module({
   imports: [
@@ -13,8 +12,7 @@ import { TwitchModule } from '../twitch/twitch.module';
     JwtModule.registerAsync({
       inject: [ConfigService],
       useFactory: (cfg: ConfigService) => ({ secret: cfg.get('JWT_SECRET') || 'dev-secret' })
-    }),
-    TwitchModule
+    })
   ],
   providers: [AuthService, JwtStrategy],
   exports: [AuthService],

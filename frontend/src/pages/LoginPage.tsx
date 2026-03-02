@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '../api/client';
 
 export function LoginPage() {
@@ -6,6 +6,14 @@ export function LoginPage() {
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const refreshTimerRef = useRef<number | null>(null);
+
+  const clearRefreshTimer = () => {
+    if (refreshTimerRef.current !== null) {
+      window.clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+  };
 
   const request = async () => {
     try {
@@ -13,12 +21,18 @@ export function LoginPage() {
       setError('');
       const { data } = await api.post('/auth/request-code', { twitchNick: nick });
       setCode(data.code);
+      clearRefreshTimer();
+      refreshTimerRef.current = window.setTimeout(() => {
+        void request();
+      }, data.ttlMs ?? 15000);
     } catch {
       setError('Не удалось получить код. Попробуйте ещё раз.');
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => () => clearRefreshTimer(), []);
 
   return (
     <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-slate-950 p-6">

@@ -16,10 +16,9 @@ declare module 'tmi.js' {
     constructor(opts: Options);
     connect(): Promise<void>;
     disconnect(): Promise<void>;
-    on(
-      event: 'message',
-      cb: (channel: string, tags: ChatUserstate, message: string, self: boolean) => void | Promise<void>,
-    ): void;
+    on(event: 'connected', cb: (address: string, port: number) => void | Promise<void>): void;
+    on(event: 'join', cb: (channel: string, username: string, self: boolean) => void | Promise<void>): void;
+    on(event: 'message', cb: (channel: string, tags: ChatUserstate, message: string, self: boolean) => void | Promise<void>): void;
   }
 
   const tmi: { Client: typeof Client };

@@ -6,8 +6,10 @@ import { AdminModule } from './admin/admin.module';
 import { ChatModule } from './chat/chat.module';
 import { SceneModule } from './scene/scene.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { TwitchModule } from './twitch/twitch.module';
+import { DebugModule } from './debug/debug.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, LobbyModule, AdminModule, ChatModule, SceneModule]
+  imports: [ConfigModule.forRoot({ isGlobal: true }), PrismaModule, AuthModule, TwitchModule, DebugModule, LobbyModule, AdminModule, ChatModule, SceneModule]
 })
 export class AppModule {}
