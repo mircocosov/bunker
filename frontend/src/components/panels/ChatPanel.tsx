@@ -7,11 +7,12 @@ type Props = {
   cooldownMs: number;
   cooldownUntil: number;
   connectionError: string | null;
+  sendError: string | null;
 };
 
 const initials = (nick: string) => nick.slice(0, 2).toUpperCase();
 
-export function ChatPanel({ messages, onSend, cooldownMs, cooldownUntil, connectionError }: Props) {
+export function ChatPanel({ messages, onSend, cooldownMs, cooldownUntil, connectionError, sendError }: Props) {
   const [text, setText] = useState('');
   const [now, setNow] = useState(Date.now());
   const listRef = useRef<HTMLDivElement>(null);
@@ -59,6 +60,7 @@ export function ChatPanel({ messages, onSend, cooldownMs, cooldownUntil, connect
           <button className="btn-primary disabled:opacity-50" disabled={!canSend} onClick={() => { onSend(text.trim()); setText(''); }}>Отправить</button>
         </div>
         {connectionError && <p className="text-xs text-rose-300">{connectionError}</p>}
+        {!connectionError && sendError && <p className="text-xs text-rose-300">{sendError}</p>}
         {cooldownLeft > 0 && <p className="text-xs text-[var(--accent-hazard)]">Подождите {cooldownSec}с</p>}
       </footer>
     </section>
