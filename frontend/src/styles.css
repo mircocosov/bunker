@@ -1,0 +1,55 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --panel-bg: rgba(3, 7, 18, 0.5);
+  --panel-border: rgba(148, 163, 184, 0.25);
+  --text-main: rgb(226, 232, 240);
+  --text-muted: rgb(148, 163, 184);
+}
+
+body {
+  @apply bg-slate-950 text-slate-100;
+  background-image: radial-gradient(circle at 20% 20%, #1e293b, #020617 40%);
+}
+
+@layer components {
+  .panel {
+    @apply rounded-2xl border p-3 backdrop-blur-md;
+    background: var(--panel-bg);
+    border-color: var(--panel-border);
+    color: var(--text-main);
+  }
+
+  .input {
+    @apply w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none transition focus:border-cyan-300;
+  }
+
+  .btn-primary {
+    @apply rounded-xl bg-cyan-600 px-3 py-2 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-cyan-500;
+  }
+
+  .btn-secondary {
+    @apply rounded-xl border border-white/20 bg-black/20 px-3 py-2 text-sm transition hover:bg-white/10;
+  }
+
+  .field {
+    @apply flex flex-col gap-1 text-sm text-slate-200;
+  }
+
+  .animate-in {
+    animation: fade-slide 220ms ease-out;
+  }
+}
+
+@keyframes fade-slide {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
