@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import tmi from 'tmi.js';
+import tmi, { ChatUserstate } from 'tmi.js';
 import { ChatMessage, TwitchChatAdapter } from './twitch.adapter';
 
 @Injectable()
@@ -18,10 +18,15 @@ export class TmiChatAdapter implements TwitchChatAdapter {
     const channel = this.cfg.get<string>('TWITCH_CHANNEL');
     if (!channel) return;
     const client = new tmi.Client({ channels: [channel], connection: { reconnect: true, secure: true } });
-    client.on('message', async (_, tags, message) => {
-      const senderNick = tags['display-name'] || tags.username || '';
-      for (const h of this.handlers) await h({ senderNick, message });
-    });
+    client.on(
+      'message',
+      async (channelName: string, tags: ChatUserstate, message: string, self: boolean) => {
+        if (self) return;
+        const senderNick = (tags.username ?? tags['display-name'] ?? '').toString();
+        for (const h of this.handlers) await h({ senderNick, message });
+        void channelName;
+      },
+    );
     await client.connect();
     this.logger.log(`Anonymous listener connected to #${channel}`);
   }
