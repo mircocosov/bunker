@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
+import { api } from '../api/client';
 import { useAuthStore } from '../store/auth';
-import { AppShell } from '../components/layout/AppShell';
-import { RightPanel } from '../components/layout/RightPanel';
-import { MobileBottomSheet } from '../components/layout/MobileBottomSheet';
-import { ChatPanel } from '../components/panels/ChatPanel';
-import { PlayersPanel } from '../components/panels/PlayersPanel';
+import { SceneLayerUi, UiMessage, UiPlayer } from '../types/ui';
+import { GameLayoutDesktop } from '../components/layout/GameLayoutDesktop';
+import { LeftSidebarMyCard } from '../components/layout/LeftSidebarMyCard';
+import { LeftSidebarChat } from '../components/layout/LeftSidebarChat';
+import { CenterScene } from '../components/layout/CenterScene';
+import { RightSidebarPlayers } from '../components/layout/RightSidebarPlayers';
+import { PcOnlyGuard } from '../components/layout/PcOnlyGuard';
 import { SceneView } from '../components/game/SceneView';
 import { HudOverlay } from '../components/game/HudOverlay';
-import { SceneLayerUi, UiMessage, UiPlayer } from '../types/ui';
 
 const demoPlayers: UiPlayer[] = [
   { id: '1', number: 1, nick: 'Kira', status: 'ALIVE', revealed: [{ type: 'profession', value: 'Инженер' }, { type: 'health', value: 'Здоров' }] },
@@ -23,68 +25,95 @@ const demoLayers: SceneLayerUi[] = [
   { id: 'ground', kind: 'GROUND', assetKey: '/assets/scenes/ground.png', zIndex: 3, offsetY: 0 }
 ];
 
-function getMode(width: number): 'DESKTOP_SPLIT' | 'TABLET_TABS' | 'MOBILE_SHEET' {
-  if (width >= 1024) return 'DESKTOP_SPLIT';
-  if (width >= 768) return 'TABLET_TABS';
-  return 'MOBILE_SHEET';
-}
+const toUiMessage = (m: any, fallbackId: string): UiMessage => ({
+  id: String(m.id ?? fallbackId),
+  nick: m.user?.twitchNick ?? 'Игрок',
+  text: m.message,
+  time: new Date(m.createdAt ?? Date.now()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' })
+});
 
 export function LobbyPage() {
   const token = useAuthStore((s) => s.token);
   const [messages, setMessages] = useState<UiMessage[]>([]);
-  const [mode, setMode] = useState(getMode(window.innerWidth));
-  const [showGroundLine, setShowGroundLine] = useState(false);
-  const socketRef = useRef<Socket | null>(null);
+  const [cooldownMs, setCooldownMs] = useState(2000);
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
+  const [isRegistered, setIsRegistered] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState(false);
+  const [socket, setSocket] = useState<Socket | null>(null);
 
   useEffect(() => {
-    const onResize = () => setMode(getMode(window.innerWidth));
-    window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    api.get('/lobby').then((res) => setRegistrationOpen(Boolean(res.data?.isActive))).catch(() => setRegistrationOpen(false));
   }, []);
 
   useEffect(() => {
-    if (!token) return;
-    const socket = io('/', { path: '/bunker/socket.io', auth: { token } });
-    socketRef.current = socket;
+    if (!token) {
+      setConnectionError('Чат недоступен: нет соединения');
+      return;
+    }
 
-    socket.on('chat:history', (history: any[]) => {
-      setMessages(history.map((m, i) => ({ id: String(m.id ?? i), nick: m.user?.twitchNick ?? 'Игрок', text: m.message, time: new Date(m.createdAt ?? Date.now()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) })));
+    const nextSocket = io('/', { path: '/bunker/socket.io', auth: { token } });
+    setSocket(nextSocket);
+
+    nextSocket.on('connect', () => setConnectionError(null));
+    nextSocket.on('disconnect', () => setConnectionError('Чат недоступен: нет соединения'));
+    nextSocket.on('connect_error', () => setConnectionError('Чат недоступен: нет соединения'));
+
+    nextSocket.on('chat:config', (cfg: { cooldownMs: number }) => {
+      setCooldownMs(cfg.cooldownMs || 2000);
     });
 
-    socket.on('chat:newMessage', (m: any) => {
-      setMessages((prev) => [...prev, { id: String(m.id ?? Date.now()), nick: m.user?.twitchNick ?? 'Игрок', text: m.message, time: new Date(m.createdAt ?? Date.now()).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) }]);
+    nextSocket.on('chat:error', (error: { message?: string; retryAfterMs?: number; cooldownMs?: number }) => {
+      if (error.cooldownMs) setCooldownMs(error.cooldownMs);
+      if (typeof error.retryAfterMs === 'number') setCooldownUntil(Date.now() + error.retryAfterMs);
+      setConnectionError(error.message ?? null);
     });
 
-    return () => socket.disconnect();
+    nextSocket.on('chat:history', (history: any[]) => {
+      setMessages(history.map((m, i) => toUiMessage(m, `history-${i}`)));
+    });
+
+    nextSocket.on('chat:newMessage', (m: any) => {
+      setMessages((prev) => [...prev, toUiMessage(m, `new-${Date.now()}`)]);
+      setConnectionError(null);
+    });
+
+    return () => nextSocket.disconnect();
   }, [token]);
 
   const sendMessage = (text: string) => {
-    socketRef.current?.emit('chat:send', { message: text });
-    if (!token) {
-      setMessages((prev) => [...prev, { id: String(Date.now()), nick: 'Вы', text, time: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) }]);
+    if (!socket || !socket.connected) {
+      setConnectionError('Чат недоступен: нет соединения');
+      return;
     }
+    socket.emit('chat:send', { message: text });
+    setCooldownUntil(Date.now() + cooldownMs);
   };
 
-  const chat = <ChatPanel messages={messages} onSend={sendMessage} />;
-  const players = <PlayersPanel players={demoPlayers} votingEnabled />;
-  const profile = useMemo(() => <div className="panel h-full"><h3 className="font-semibold">Мой профиль</h3><p className="mt-2 text-sm text-[var(--text-muted)]">Кастомизация персонажа и статистика появятся здесь.</p></div>, []);
+  const register = async () => {
+    await api.post('/lobby/register');
+    setIsRegistered(true);
+  };
 
   return (
-    <AppShell
-      mode={mode}
-      visual={
-        <>
-          {import.meta.env.DEV && (
-            <button className="absolute left-3 top-3 z-20 rounded-lg border border-lime-300/30 bg-lime-500/10 px-2 py-1 text-xs text-lime-100" onClick={() => setShowGroundLine((v) => !v)}>
-              {showGroundLine ? 'Hide ground line' : 'Show ground line'}
-            </button>
-          )}
-          <SceneView players={demoPlayers} layers={demoLayers} groundYPercent={74} showGroundLine={showGroundLine} />
-          <HudOverlay phase="VOTE" timerSec={86} />
-        </>
-      }
-      rightPanel={<RightPanel chat={chat} players={players} />}
-      mobilePanel={<MobileBottomSheet chat={chat} players={players} profile={profile} />}
-    />
+    <PcOnlyGuard>
+      <GameLayoutDesktop
+        leftTop={<LeftSidebarMyCard />}
+        leftBottom={<LeftSidebarChat messages={messages} onSend={sendMessage} cooldownMs={cooldownMs} cooldownUntil={cooldownUntil} connectionError={connectionError} />}
+        center={
+          <CenterScene>
+            <SceneView players={demoPlayers} layers={demoLayers} groundYPercent={74} />
+            <HudOverlay phase="VOTE" timerSec={86} />
+            {registrationOpen && !isRegistered && (
+              <div className="absolute inset-0 z-20 grid place-items-center">
+                <button className="btn-primary px-10 py-4 text-xl" onClick={register}>Зарегистрироваться</button>
+              </div>
+            )}
+            {isRegistered && <p className="absolute bottom-5 left-1/2 z-20 -translate-x-1/2 rounded-full border border-emerald-400/30 bg-emerald-950/60 px-4 py-2 text-sm">Вы зарегистрированы</p>}
+          </CenterScene>
+        }
+        right={<RightSidebarPlayers players={demoPlayers} />}
+      />
+    </PcOnlyGuard>
   );
 }

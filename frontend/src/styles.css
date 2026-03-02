@@ -3,15 +3,28 @@
 @tailwind utilities;
 
 :root {
-  --panel-bg: rgba(3, 7, 18, 0.5);
-  --panel-border: rgba(148, 163, 184, 0.25);
-  --text-main: rgb(226, 232, 240);
-  --text-muted: rgb(148, 163, 184);
+  --bg-main: #0f1114;
+  --bg-secondary: #1a1d21;
+  --panel-bg: rgba(28, 33, 38, 0.72);
+  --panel-border: rgba(125, 136, 148, 0.28);
+  --text-main: rgb(219, 224, 230);
+  --text-muted: rgb(139, 149, 160);
+  --accent-hazard: #c7aa52;
+  --accent-rust: #8e5e42;
+  --accent-cold: #7fa7b8;
+}
+
+html,
+body,
+#root {
+  height: 100%;
 }
 
 body {
-  @apply bg-slate-950 text-slate-100;
-  background-image: radial-gradient(circle at 20% 20%, #1e293b, #020617 40%);
+  @apply text-slate-100;
+  margin: 0;
+  overflow: hidden;
+  background: radial-gradient(circle at 20% 20%, #2a2f35 0%, #13161a 45%, #0a0c0f 100%);
 }
 
 @layer components {
@@ -23,11 +36,12 @@ body {
   }
 
   .input {
-    @apply w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none transition focus:border-cyan-300;
+    @apply w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none transition focus:border-[var(--accent-cold)];
   }
 
   .btn-primary {
-    @apply rounded-xl bg-cyan-600 px-3 py-2 text-sm font-medium text-white transition hover:-translate-y-0.5 hover:bg-cyan-500;
+    @apply rounded-xl px-3 py-2 text-sm font-semibold text-[#111] transition hover:-translate-y-0.5;
+    background: linear-gradient(180deg, #c9b15e 0%, #a2853c 100%);
   }
 
   .btn-secondary {

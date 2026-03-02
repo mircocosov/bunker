@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { ConnectedSocket, MessageBody, OnGatewayConnection, SubscribeMessage, WebSocketGateway, WebSocketServer } from '@nestjs/websockets';
 import { JwtService } from '@nestjs/jwt';
 import { Server, Socket } from 'socket.io';
@@ -6,7 +7,10 @@ import { ChatService } from './chat.service';
 @WebSocketGateway({ cors: { origin: '*' }, path: '/bunker/socket.io' })
 export class ChatGateway implements OnGatewayConnection {
   @WebSocketServer() server!: Server;
-  constructor(private jwt: JwtService, private chat: ChatService) {}
+  constructor(
+    private jwt: JwtService,
+    private chat: ChatService
+  ) {}
 
   async handleConnection(client: Socket) {
     try {
@@ -16,14 +20,33 @@ export class ChatGateway implements OnGatewayConnection {
       client.join('lobby');
       const history = await this.chat.history();
       client.emit('chat:history', history);
+      client.emit('chat:config', { cooldownMs: this.chat.getCooldownMs() });
     } catch {
+      client.emit('chat:error', { message: 'Чат недоступен: нет соединения' });
       client.disconnect();
     }
   }
 
   @SubscribeMessage('chat:send')
-  async send(@ConnectedSocket() client: Socket, @MessageBody() body: { message: string }) {
-    const saved = await this.chat.send(client.data.user.userId, body.message);
-    this.server.to('lobby').emit('chat:newMessage', saved);
+  async send(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() body: { message: string }
+  ) {
+    if (!client.data.user?.userId) {
+      client.emit('chat:error', { message: 'Чат недоступен: нет соединения' });
+      return;
+    }
+
+    try {
+      const saved = await this.chat.send(client.data.user.userId, body.message);
+      this.server.to('lobby').emit('chat:newMessage', saved);
+    } catch (error) {
+      if (error instanceof BadRequestException) {
+        const payload = error.getResponse();
+        client.emit('chat:error', typeof payload === 'string' ? { message: payload } : payload);
+        return;
+      }
+      client.emit('chat:error', { message: 'Не удалось отправить сообщение' });
+    }
   }
 }
