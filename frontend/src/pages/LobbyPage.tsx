@@ -60,6 +60,9 @@ export function LobbyPage() {
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [showStartModal, setShowStartModal] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+  const [apocalypseTypes, setApocalypseTypes] = useState<Array<{ id: string; name: string }>>([]);
+  const [bunkerLocations, setBunkerLocations] = useState<Array<{ id: string; name: string }>>([]);
   const [startForm, setStartForm] = useState({
     playersLimit: '8',
     apocalypseTypeId: 'random',
@@ -72,6 +75,15 @@ export function LobbyPage() {
   useEffect(() => {
     api.get('/lobby').then((res) => setRegistrationOpen(Boolean(res.data?.isActive))).catch(() => setRegistrationOpen(false));
   }, []);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+
+    Promise.all([
+      api.get('/admin/pools/apocalypseTypes').then((res) => setApocalypseTypes(Array.isArray(res.data) ? res.data : [])).catch(() => setApocalypseTypes([])),
+      api.get('/admin/pools/bunkerLocations').then((res) => setBunkerLocations(Array.isArray(res.data) ? res.data : [])).catch(() => setBunkerLocations([]))
+    ]);
+  }, [isAdmin]);
 
   useEffect(() => {
     if (!token) {
@@ -150,17 +162,22 @@ export function LobbyPage() {
   const createLobby = async () => {
     if (!token || !isAdmin) return;
 
-    await api.post('/lobby', {
-      playersLimit: Number(startForm.playersLimit) || 8,
-      voteTimerSec: 60,
-      revealTimerSec: 30,
-      initialRevealedCount: 1,
-      apocalypseTypeId: startForm.apocalypseTypeId === 'random' ? undefined : startForm.apocalypseTypeId,
-      bunkerLocationTypeId: startForm.bunkerLocationTypeId === 'random' ? undefined : startForm.bunkerLocationTypeId
-    });
+    try {
+      setStartError(null);
+      await api.post('/lobby', {
+        playersLimit: Number(startForm.playersLimit) || 8,
+        voteTimerSec: 60,
+        revealTimerSec: 30,
+        initialRevealedCount: 1,
+        apocalypseTypeId: startForm.apocalypseTypeId === 'random' ? undefined : startForm.apocalypseTypeId,
+        bunkerLocationTypeId: startForm.bunkerLocationTypeId === 'random' ? undefined : startForm.bunkerLocationTypeId
+      });
 
-    setShowStartModal(false);
-    setRegistrationOpen(true);
+      setShowStartModal(false);
+      setRegistrationOpen(true);
+    } catch (error: any) {
+      setStartError(error?.response?.data?.message ?? 'Не удалось создать лобби');
+    }
   };
 
   return (
@@ -172,7 +189,7 @@ export function LobbyPage() {
           <CenterScene>
             <SceneView players={demoPlayers} layers={demoLayers} groundYPercent={74} />
             <HudOverlay phase="VOTE" timerSec={86} />
-            {registrationOpen && !isRegistered && (
+            {(isAdmin || registrationOpen) && !isRegistered && (
               <div className="absolute inset-0 z-20 grid place-items-center">
                 <button className="btn-primary px-10 py-4 text-xl" onClick={isAdmin ? () => setShowStartModal(true) : register}>{isAdmin ? 'Начать игру' : 'Зарегистрироваться'}</button>
               </div>
@@ -190,16 +207,18 @@ export function LobbyPage() {
                     Апокалипсис
                     <select className="input" value={startForm.apocalypseTypeId} onChange={(e) => setStartForm((prev) => ({ ...prev, apocalypseTypeId: e.target.value }))}>
                       <option value="random">Рандом</option>
-                      <option value="id-1">Ядерная зима</option>
-                      <option value="id-2">Зомби-вирус</option>
+                      {apocalypseTypes.map((item) => (
+                        <option key={item.id} value={item.id}>{item.name}</option>
+                      ))}
                     </select>
                   </label>
                   <label className="field">
                     Расположение бункера
                     <select className="input" value={startForm.bunkerLocationTypeId} onChange={(e) => setStartForm((prev) => ({ ...prev, bunkerLocationTypeId: e.target.value }))}>
                       <option value="random">Рандом</option>
-                      <option value="id-1">Горная база</option>
-                      <option value="id-2">Промзона</option>
+                      {bunkerLocations.map((item) => (
+                        <option key={item.id} value={item.id}>{item.name}</option>
+                      ))}
                     </select>
                   </label>
                   <label className="field">
@@ -210,6 +229,7 @@ export function LobbyPage() {
                       <option value="extreme-cold">Экстремальный холод</option>
                     </select>
                   </label>
+                  {startError && <p className="text-sm text-rose-300">{startError}</p>}
                   <div className="flex justify-end gap-2">
                     <button className="btn-secondary" onClick={() => setShowStartModal(false)}>Отмена</button>
                     <button className="btn-primary" onClick={createLobby}>Запустить</button>

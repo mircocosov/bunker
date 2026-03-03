@@ -53,17 +53,17 @@ export class AdminService {
 
   listPool(type: PoolType) {
     const delegate = this.poolDelegate(type);
-    return delegate.findMany({ orderBy: { value: 'asc' } });
+    return delegate.findMany({ orderBy: this.poolOrderBy(type) });
   }
 
   createPoolItem(type: PoolType, payload: Record<string, any>) {
     const delegate = this.poolDelegate(type);
-    return delegate.create({ data: payload });
+    return delegate.create({ data: this.normalizePoolPayload(type, payload) });
   }
 
   updatePoolItem(type: PoolType, id: string, payload: Record<string, any>) {
     const delegate = this.poolDelegate(type);
-    return delegate.update({ where: { id }, data: payload });
+    return delegate.update({ where: { id }, data: this.normalizePoolPayload(type, payload) });
   }
 
   deletePoolItem(type: PoolType, id: string) {
@@ -74,5 +74,42 @@ export class AdminService {
   private poolDelegate(type: PoolType): any {
     const key = poolMap[type];
     return (this.prisma as any)[key];
+  }
+
+  private poolOrderBy(type: PoolType): Record<string, 'asc'> {
+    if (type === 'apocalypseTypes' || type === 'bunkerLocations') {
+      return { name: 'asc' };
+    }
+    if (type === 'actionCards') {
+      return { type: 'asc' };
+    }
+    return { value: 'asc' };
+  }
+
+  private normalizePoolPayload(type: PoolType, payload: Record<string, any>): Record<string, any> {
+    if (type === 'actionCards') {
+      return {
+        type: payload.type,
+        targetField: payload.targetField || null,
+        upgradeText: payload.upgradeText || null
+      };
+    }
+
+    if (type === 'health') {
+      const normalizedSeverity = typeof payload.severity === 'boolean'
+        ? (payload.severity ? 'severe' : null)
+        : (payload.severity || null);
+
+      return {
+        value: payload.value,
+        severity: normalizedSeverity
+      };
+    }
+
+    if (type === 'apocalypseTypes' || type === 'bunkerLocations') {
+      return { name: payload.name };
+    }
+
+    return { value: payload.value };
   }
 }
