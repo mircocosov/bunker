@@ -55,6 +55,26 @@ body {
   .animate-in {
     animation: fade-slide 220ms ease-out;
   }
+
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--accent-cold) 75%, #1a1d21) rgba(255, 255, 255, 0.08);
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 999px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, var(--accent-cold) 0%, color-mix(in srgb, var(--accent-cold) 60%, #111) 100%);
+    border-radius: 999px;
+  }
 }
 
 @keyframes fade-slide {

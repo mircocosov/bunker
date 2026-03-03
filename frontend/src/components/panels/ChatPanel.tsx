@@ -39,7 +39,7 @@ export function ChatPanel({ messages, onSend, cooldownMs, cooldownUntil, connect
         <span className="text-xs text-[var(--text-muted)]">Антиспам: {Math.round(cooldownMs / 1000)}с</span>
       </header>
 
-      <div ref={listRef} className="relative flex-1 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2">
+      <div ref={listRef} className="custom-scrollbar relative flex-1 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-2">
         <div className="space-y-1.5">
           {messages.map((m) => (
             <article key={m.id} className="rounded-lg bg-white/5 p-2">
