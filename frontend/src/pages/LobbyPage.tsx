@@ -26,6 +26,20 @@ const demoLayers: SceneLayerUi[] = [
   { id: 'ground', kind: 'GROUND', assetKey: '/assets/scenes/ground.png', zIndex: 3, offsetY: 0 }
 ];
 
+type ScenePreset = {
+  id: string;
+  apocalypseTypeId: string;
+  bunkerLocationTypeId: string;
+  groundYPercent: number;
+  layers: SceneLayerUi[];
+};
+
+const normalizeAssetKey = (assetKey: string): string => {
+  if (!assetKey) return assetKey;
+  if (assetKey.startsWith('http://') || assetKey.startsWith('https://') || assetKey.startsWith('data:')) return assetKey;
+  return assetKey.startsWith('/') ? assetKey : `/${assetKey}`;
+};
+
 const toUiMessage = (m: any, fallbackId: string): UiMessage => ({
   id: String(m.id ?? fallbackId),
   nick: m.user?.twitchNick ?? 'Игрок',
@@ -63,6 +77,7 @@ export function LobbyPage() {
   const [startError, setStartError] = useState<string | null>(null);
   const [apocalypseTypes, setApocalypseTypes] = useState<Array<{ id: string; name: string }>>([]);
   const [bunkerLocations, setBunkerLocations] = useState<Array<{ id: string; name: string }>>([]);
+  const [scenePresets, setScenePresets] = useState<ScenePreset[]>([]);
   const [startForm, setStartForm] = useState({
     playersLimit: '8',
     apocalypseTypeId: 'random',
@@ -84,6 +99,49 @@ export function LobbyPage() {
       api.get('/admin/pools/bunkerLocations').then((res) => setBunkerLocations(Array.isArray(res.data) ? res.data : [])).catch(() => setBunkerLocations([]))
     ]);
   }, [isAdmin]);
+
+  useEffect(() => {
+    api.get('/scene/presets')
+      .then((res) => {
+        const presets = Array.isArray(res.data) ? res.data : [];
+        setScenePresets(
+          presets.map((preset: any) => ({
+            id: String(preset.id),
+            apocalypseTypeId: String(preset.apocalypseTypeId ?? ''),
+            bunkerLocationTypeId: String(preset.bunkerLocationTypeId ?? ''),
+            groundYPercent: Number(preset.groundYPercent ?? 74),
+            layers: Array.isArray(preset.layers)
+              ? preset.layers.map((layer: any) => ({
+                id: String(layer.id),
+                kind: layer.kind,
+                assetKey: normalizeAssetKey(String(layer.assetKey ?? '')),
+                zIndex: Number(layer.zIndex ?? 0),
+                offsetX: Number(layer.offsetX ?? 0),
+                offsetY: Number(layer.offsetY ?? 0),
+                scale: Number(layer.scale ?? 1),
+                repeatX: Boolean(layer.repeatX)
+              }))
+              : []
+          }))
+        );
+      })
+      .catch(() => setScenePresets([]));
+  }, []);
+
+  const activeScenePreset = useMemo(() => {
+    if (!scenePresets.length) return null;
+
+    const apocalypseId = startForm.apocalypseTypeId;
+    const locationId = startForm.bunkerLocationTypeId;
+
+    const match = scenePresets.find((preset) => {
+      const apocalypseMatches = apocalypseId === 'random' || preset.apocalypseTypeId === apocalypseId;
+      const locationMatches = locationId === 'random' || preset.bunkerLocationTypeId === locationId;
+      return apocalypseMatches && locationMatches;
+    });
+
+    return match ?? scenePresets[0];
+  }, [scenePresets, startForm.apocalypseTypeId, startForm.bunkerLocationTypeId]);
 
   useEffect(() => {
     if (!token) {
@@ -187,7 +245,11 @@ export function LobbyPage() {
         leftBottom={<LeftSidebarChat messages={messages} onSend={sendMessage} cooldownMs={cooldownMs} cooldownUntil={cooldownUntil} connectionError={connectionError} sendError={sendError} />}
         center={
           <CenterScene>
-            <SceneView players={demoPlayers} layers={demoLayers} groundYPercent={74} />
+            <SceneView
+              players={demoPlayers}
+              layers={activeScenePreset?.layers?.length ? activeScenePreset.layers : demoLayers}
+              groundYPercent={activeScenePreset?.groundYPercent ?? 74}
+            />
             <HudOverlay phase="VOTE" timerSec={86} />
             {(isAdmin || registrationOpen) && !isRegistered && (
               <div className="absolute inset-0 z-20 grid place-items-center">
