@@ -31,7 +31,7 @@ export function PlayersPanel({ players, votingEnabled = true, isAdmin = false }:
         {selected && <p className="text-xs text-cyan-200">Ваш голос: #{selected.number} {selected.nick}</p>}
       </header>
 
-      <div className="h-[calc(100%-9.5rem)] space-y-2 overflow-y-auto pr-1">
+      <div className="custom-scrollbar h-[calc(100%-12rem)] space-y-2 overflow-y-auto pr-1">
         {players.map((player) => (
           <button
             key={player.id}
@@ -60,11 +60,16 @@ export function PlayersPanel({ players, votingEnabled = true, isAdmin = false }:
         <ul className="mt-1 text-sm text-[var(--text-muted)]">{spectators.map((s) => <li key={s.id}>{s.nick}</li>)}</ul>
       </details>
 
-      {isAdmin && (
-        <button className="btn-secondary mt-2 w-full" onClick={() => navigate('/admin')}>
-          Админ
+      <div className="mt-2 space-y-2">
+        <button className="btn-secondary w-full" onClick={() => navigate('/character')}>
+          Персонаж
         </button>
-      )}
+        {isAdmin && (
+          <button className="btn-secondary w-full" onClick={() => navigate('/admin')}>
+            Админ
+          </button>
+        )}
+      </div>
     </section>
   );
 }

@@ -1,18 +1,32 @@
-import { useEffect, useMemo, useState } from 'react';
+import { ChangeEvent, useEffect, useMemo, useState } from 'react';
 import { api } from '../api/client';
 import { AdminSection, AdminShell } from '../components/layout/AdminShell';
 
 type CrudItem = Record<string, any> & { id: string };
 
-type PoolConfig = { key: string; label: string; fields: string[] };
+type FieldConfig = {
+  key: string;
+  label: string;
+  type?: 'text' | 'select' | 'checkbox';
+  options?: { value: string; label: string }[];
+};
+
+type PoolConfig = { key: string; label: string; fields: FieldConfig[] };
 
 const statPools: PoolConfig[] = [
-  { key: 'professions', label: 'Профессии', fields: ['value'] },
-  { key: 'phobias', label: 'Фобии', fields: ['value'] },
-  { key: 'hobbies', label: 'Хобби', fields: ['value'] },
-  { key: 'luggage', label: 'Багаж', fields: ['value'] },
-  { key: 'facts', label: 'Факты', fields: ['value'] },
-  { key: 'health', label: 'Здоровье', fields: ['value', 'severity'] }
+  { key: 'professions', label: 'Профессии', fields: [{ key: 'value', label: 'Значение' }] },
+  { key: 'phobias', label: 'Фобии', fields: [{ key: 'value', label: 'Значение' }] },
+  { key: 'hobbies', label: 'Хобби', fields: [{ key: 'value', label: 'Значение' }] },
+  { key: 'luggage', label: 'Багаж', fields: [{ key: 'value', label: 'Значение' }] },
+  { key: 'facts', label: 'Факты', fields: [{ key: 'value', label: 'Значение' }] },
+  {
+    key: 'health',
+    label: 'Здоровье',
+    fields: [
+      { key: 'value', label: 'Описание' },
+      { key: 'severity', label: 'Тяжёлое состояние', type: 'checkbox' }
+    ]
+  }
 ];
 
 export function AdminPage() {
@@ -31,15 +45,42 @@ export function AdminPage() {
           <CrudSection title={activePool.label} endpoint={`/admin/pools/${activePool.key}`} fields={activePool.fields} />
         </div>
       ),
-      cards: <CrudSection title="Карты действий" endpoint="/admin/pools/actionCards" fields={['type', 'targetField', 'upgradeText']} />,
+      cards: (
+        <CrudSection
+          title="Карты действий"
+          endpoint="/admin/pools/actionCards"
+          fields={[
+            {
+              key: 'type',
+              label: 'Тип карты',
+              type: 'select',
+              options: [
+                { value: 'replace', label: 'заменить' },
+                { value: 'upgrade', label: 'улучшение' }
+              ]
+            },
+            {
+              key: 'targetField',
+              label: 'Область действия',
+              type: 'select',
+              options: [
+                { value: 'all', label: 'всем' },
+                { value: 'revealed', label: 'открытым' },
+                { value: 'bunker', label: 'бункер' }
+              ]
+            },
+            { key: 'upgradeText', label: 'Описание карточки' }
+          ]}
+        />
+      ),
       scenes: (
         <div className="space-y-4">
-          <CrudSection title="Апокалипсис" endpoint="/admin/pools/apocalypseTypes" fields={['name']} />
-          <CrudSection title="Расположение бункера" endpoint="/admin/pools/bunkerLocations" fields={['name']} />
+          <SceneSection title="Апокалипсис" endpoint="/admin/pools/apocalypseTypes" />
+          <SceneSection title="Расположение бункера" endpoint="/admin/pools/bunkerLocations" />
         </div>
       ),
-      filter: <CrudSection title="Фильтр-чата" endpoint="/admin/chat-filter" fields={['word']} />,
-      blacklist: <CrudSection title="Черный список" endpoint="/admin/bans" fields={['twitchNick']} deleteById onlyDelete />,
+      filter: <CrudSection title="Фильтр чата" endpoint="/admin/chat-filter" fields={[{ key: 'word', label: 'Слово' }]} />,
+      blacklist: <CrudSection title="Черный список" endpoint="/admin/bans" fields={[{ key: 'twitchNick', label: 'Ник' }]} deleteById onlyDelete />,
       game: <GameAdminSection />
     }),
     [activePool]
@@ -57,9 +98,93 @@ function GameAdminSection() {
   );
 }
 
-function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete = false }: { title: string; endpoint: string; fields: string[]; deleteById?: boolean; onlyDelete?: boolean }) {
+function SceneSection({ title, endpoint }: { title: string; endpoint: string }) {
   const [items, setItems] = useState<CrudItem[]>([]);
-  const [form, setForm] = useState<Record<string, string>>({});
+  const [selectedValue, setSelectedValue] = useState('');
+  const [newName, setNewName] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const load = async () => {
+    const { data } = await api.get(endpoint);
+    setItems(Array.isArray(data) ? data : []);
+  };
+
+  useEffect(() => { load(); }, [endpoint]);
+
+  const addImage = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0] ?? null;
+    setImageFile(file);
+    setError(null);
+  };
+
+  const submit = async () => {
+    setError(null);
+    setSuccess(null);
+
+    if (!selectedValue) {
+      setError('Выберите сцену или пункт «добавить».');
+      return;
+    }
+
+    if (selectedValue === '__add__' && !newName.trim()) {
+      setError('Введите название новой сцены.');
+      return;
+    }
+
+    if (!imageFile) {
+      setError('Добавьте картинку для сцены.');
+      return;
+    }
+
+    if (selectedValue === '__add__') {
+      await api.post(endpoint, { name: newName.trim() });
+      setNewName('');
+      await load();
+      setSelectedValue('');
+    }
+
+    setImageFile(null);
+    setSuccess('Поля заполнены. Загрузка картинки будет подключена на следующем этапе.');
+  };
+
+  return (
+    <div className="space-y-3 rounded-xl border border-white/10 bg-black/20 p-3">
+      <h2 className="text-lg font-semibold">{title}</h2>
+      <div className="grid gap-2 md:grid-cols-[1fr_auto] md:items-start">
+        <div className="space-y-2">
+          <select className="input" value={selectedValue} onChange={(e) => { setSelectedValue(e.target.value); setError(null); }}>
+            <option value="">Выберите сцену</option>
+            {items.map((item) => (
+              <option key={item.id} value={item.id}>{item.name ?? item.value ?? item.id}</option>
+            ))}
+            <option value="__add__">добавить</option>
+          </select>
+
+          {selectedValue === '__add__' && (
+            <input className="input" placeholder="Введите название" value={newName} onChange={(e) => { setNewName(e.target.value); setError(null); }} />
+          )}
+        </div>
+
+        <label className="btn-secondary inline-flex cursor-pointer items-center justify-center">
+          Добавить картинку
+          <input className="hidden" type="file" accept="image/*" onChange={addImage} />
+        </label>
+      </div>
+
+      {imageFile && <p className="text-xs text-[var(--text-muted)]">Выбрано: {imageFile.name}</p>}
+      {error && <p className="text-xs text-rose-300">{error}</p>}
+      {success && <p className="text-xs text-emerald-300">{success}</p>}
+
+      <button className="btn-primary" onClick={submit}>Сохранить</button>
+    </div>
+  );
+}
+
+function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete = false }: { title: string; endpoint: string; fields: FieldConfig[]; deleteById?: boolean; onlyDelete?: boolean }) {
+  const [items, setItems] = useState<CrudItem[]>([]);
+  const [form, setForm] = useState<Record<string, string | boolean>>({});
   const [editing, setEditing] = useState<CrudItem | null>(null);
 
   const load = async () => {
@@ -93,7 +218,21 @@ function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete =
         <div className="rounded-xl border border-white/10 bg-black/20 p-3">
           <div className="grid gap-2 md:grid-cols-3">
             {fields.map((field) => (
-              <input key={field} className="input" placeholder={field} value={form[field] ?? ''} onChange={(e) => setForm((prev) => ({ ...prev, [field]: e.target.value }))} />
+              <label key={field.key} className="field">
+                {field.label}
+                {field.type === 'select' ? (
+                  <select className="input" value={String(form[field.key] ?? '')} onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))}>
+                    <option value="">Выберите значение</option>
+                    {field.options?.map((option) => (
+                      <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                  </select>
+                ) : field.type === 'checkbox' ? (
+                  <input type="checkbox" className="h-4 w-4 accent-[var(--accent-cold)]" checked={Boolean(form[field.key])} onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.checked }))} />
+                ) : (
+                  <input className="input" placeholder={field.label} value={String(form[field.key] ?? '')} onChange={(e) => setForm((prev) => ({ ...prev, [field.key]: e.target.value }))} />
+                )}
+              </label>
             ))}
           </div>
           <button className="btn-primary mt-3" onClick={submit}>{editing ? 'Сохранить' : 'Добавить'}</button>
@@ -103,8 +242,8 @@ function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete =
       <div className="space-y-2">
         {items.map((item) => (
           <div key={item.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2">
-            <div className="flex-1 text-sm">{fields.map((f) => `${f}: ${item[f] ?? '-'}`).join(' · ')}</div>
-            {!onlyDelete && <button className="btn-secondary" onClick={() => { setEditing(item); setForm(Object.fromEntries(fields.map((f) => [f, item[f] ?? '']))); }}>Редактировать</button>}
+            <div className="flex-1 text-sm">{fields.map((f) => `${f.label}: ${String(item[f.key] ?? '-')}`).join(' · ')}</div>
+            {!onlyDelete && <button className="btn-secondary" onClick={() => { setEditing(item); setForm(Object.fromEntries(fields.map((f) => [f.key, item[f.key] ?? (f.type === 'checkbox' ? false : '')]))); }}>Редактировать</button>}
             <button className="btn-secondary" onClick={() => remove(item.id)}>{deleteById ? 'Разбанить' : 'Удалить'}</button>
           </div>
         ))}
@@ -112,4 +251,3 @@ function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete =
     </div>
   );
 }
-

@@ -20,23 +20,23 @@ export function LeftSidebarMyCard() {
   const reveal = (key: string) => setFields((prev) => prev.map((field) => (field.key === key ? { ...field, opened: true } : field)));
 
   return (
-    <section className="panel flex h-full min-h-0 flex-col">
-      <h3 className="text-base font-semibold">Мой персонаж</h3>
-      <div className="mt-1 rounded-xl border border-white/10 bg-black/30 p-2">
-        <div className="mx-auto h-16 w-12 rounded-md border border-white/20 bg-gradient-to-b from-zinc-500 to-zinc-700" />
+    <section className="panel flex h-full min-h-0 flex-col p-2.5">
+      <h3 className="text-sm font-semibold">Мой персонаж</h3>
+      <div className="mt-1 rounded-lg border border-white/10 bg-black/30 p-1.5">
+        <div className="mx-auto h-12 w-9 rounded border border-white/20 bg-gradient-to-b from-zinc-500 to-zinc-700" />
       </div>
 
-      <h4 className="mt-2 font-semibold">Моя карточка</h4>
-      <div className="mt-1 min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-1">
+      <h4 className="mt-2 text-sm font-semibold">Моя карточка</h4>
+      <div className="custom-scrollbar mt-1 min-h-0 flex-1 space-y-1 overflow-y-auto pr-1">
         {fields.map((field) => (
-          <div key={field.key} className="rounded-xl border border-white/10 bg-white/5 p-1.5">
+          <div key={field.key} className="rounded-lg border border-white/10 bg-white/5 p-1">
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-[11px] text-[var(--text-muted)]">{field.label}</p>
-                <p className="text-xs leading-tight">{field.opened ? field.value : 'Скрыто'}</p>
+                <p className="text-[10px] text-[var(--text-muted)]">{field.label}</p>
+                <p className="text-[11px] leading-tight">{field.opened ? field.value : 'Скрыто'}</p>
               </div>
               {!field.opened && (
-                <button className="btn-secondary px-2 py-0.5 text-[11px]" onClick={() => reveal(field.key)}>
+                <button className="btn-secondary px-1.5 py-0.5 text-[10px]" onClick={() => reveal(field.key)}>
                   Открыть
                 </button>
               )}
