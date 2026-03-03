@@ -55,8 +55,22 @@ export function AdminPage() {
               label: 'Тип карты',
               type: 'select',
               options: [
-                { value: 'replace', label: 'заменить' },
-                { value: 'upgrade', label: 'улучшение' }
+                { value: 'replace', label: 'Заменить' },
+                { value: 'upgrade', label: 'Улучшение' },
+                { value: 'take', label: 'Забрать' }
+              ]
+            },
+            {
+              key: 'changeField',
+              label: 'Что меняем',
+              type: 'select',
+              options: [
+                { value: 'professions', label: 'Профессии' },
+                { value: 'phobias', label: 'Фобии' },
+                { value: 'hobbies', label: 'Хобби' },
+                { value: 'luggage', label: 'Багаж' },
+                { value: 'facts', label: 'Факты' },
+                { value: 'health', label: 'Здоровье' }
               ]
             },
             {
@@ -64,9 +78,9 @@ export function AdminPage() {
               label: 'Область действия',
               type: 'select',
               options: [
-                { value: 'all', label: 'всем' },
-                { value: 'revealed', label: 'открытым' },
-                { value: 'bunker', label: 'бункер' }
+                { value: 'all', label: 'Всем' },
+                { value: 'revealed', label: 'Открытым' },
+                { value: 'bunker', label: 'Бункер' }
               ]
             },
             { key: 'upgradeText', label: 'Описание карточки' }
@@ -159,7 +173,7 @@ function SceneSection({ title, endpoint }: { title: string; endpoint: string }) 
             {items.map((item) => (
               <option key={item.id} value={item.id}>{item.name ?? item.value ?? item.id}</option>
             ))}
-            <option value="__add__">добавить</option>
+            <option value="__add__">Добавить</option>
           </select>
 
           {selectedValue === '__add__' && (
