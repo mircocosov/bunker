@@ -152,15 +152,19 @@ function SceneSection({ title, endpoint }: { title: string; endpoint: string }) 
       return;
     }
 
-    if (selectedValue === '__add__') {
-      await api.post(endpoint, { name: newName.trim() });
-      setNewName('');
-      await load();
-      setSelectedValue('');
-    }
+    try {
+      if (selectedValue === '__add__') {
+        await api.post(endpoint, { name: newName.trim() });
+        setNewName('');
+        await load();
+        setSelectedValue('');
+      }
 
-    setImageFile(null);
-    setSuccess('Поля заполнены. Загрузка картинки будет подключена на следующем этапе.');
+      setImageFile(null);
+      setSuccess('Сохранено');
+    } catch {
+      setError('Не удалось сохранить сцену');
+    }
   };
 
   return (
@@ -192,6 +196,14 @@ function SceneSection({ title, endpoint }: { title: string; endpoint: string }) 
       {success && <p className="text-xs text-emerald-300">{success}</p>}
 
       <button className="btn-primary" onClick={submit}>Сохранить</button>
+
+      <div className="max-h-56 space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-white/5 p-2">
+        {items.map((item) => (
+          <div key={item.id} className="rounded-lg border border-white/10 bg-black/20 px-2 py-1 text-sm">
+            {item.name ?? item.value ?? item.id}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -253,7 +265,7 @@ function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete =
         </div>
       )}
 
-      <div className="space-y-2">
+      <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
         {items.map((item) => (
           <div key={item.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2">
             <div className="flex-1 text-sm">{fields.map((f) => `${f.label}: ${String(item[f.key] ?? '-')}`).join(' · ')}</div>
