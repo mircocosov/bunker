@@ -1,0 +1,287 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserStatus {
+  guest_pending
+  active
+  suspended
+  banned
+  deleted
+}
+
+enum PublishStatus {
+  draft
+  review
+  published
+  archived
+}
+
+model User {
+  id           String      @id @default(cuid())
+  email        String?     @unique
+  passwordHash String?
+  status       UserStatus  @default(guest_pending)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deletedAt    DateTime?
+
+  profile      Profile?
+  hostedRooms  Room[]      @relation("RoomHost")
+  reports      Report[]    @relation("Reporter")
+  auditLogs    AuditLog[]  @relation("AuditActor")
+}
+
+model Profile {
+  userId      String  @id
+  nickname    String  @unique
+  avatarUrl   String?
+  locale      String  @default("ru")
+  pronouns    String?
+  statsJson   Json?
+  user        User    @relation(fields: [userId], references: [id])
+}
+
+model Room {
+  id          String      @id @default(cuid())
+  code        String      @unique
+  hostUserId  String
+  visibility  String
+  mode        String
+  ruleSetId   String?
+  maxPlayers  Int
+  status      String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  host        User        @relation("RoomHost", fields: [hostUserId], references: [id])
+  ruleSet     GameRuleSet? @relation(fields: [ruleSetId], references: [id])
+  matches     Match[]
+
+  @@index([visibility, status])
+}
+
+model Match {
+  id             String   @id @default(cuid())
+  roomId         String
+  state          String
+  round          Int      @default(0)
+  seed           String
+  scenarioId     String?
+  bunkerConfigId String?
+  eventSeq       Int      @default(0)
+  snapshotJson   Json?
+  startedAt      DateTime?
+  endedAt        DateTime?
+
+  room           Room     @relation(fields: [roomId], references: [id])
+
+  @@index([roomId])
+  @@index([state])
+}
+
+model PlayerState {
+  id            String   @id @default(cuid())
+  matchId       String
+  userId        String
+  seatNo        Int
+  isAlive       Boolean  @default(true)
+  isConnected   Boolean  @default(true)
+  revealed      Json?
+  penaltiesJson Json?
+  voteWeight    Int      @default(1)
+
+  @@unique([matchId, userId])
+  @@index([matchId, isAlive])
+}
+
+model CardDefinition {
+  id               String        @id
+  category         String
+  titleJson        Json
+  descriptionJson  Json?
+  weight           Int
+  rarity           String
+  powerScore       Int
+  incompatibleWith Json?
+  requiredWith     Json?
+  tagsJson         Json?
+  status           PublishStatus @default(draft)
+  version          Int           @default(1)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  deletedAt        DateTime?
+
+  @@index([category, status])
+  @@index([rarity, weight])
+}
+
+model CardInstance {
+  id               String   @id @default(cuid())
+  matchId          String
+  playerId         String
+  cardDefinitionId String
+  isRevealed       Boolean  @default(false)
+  revealedAt       DateTime?
+
+  @@unique([matchId, playerId, cardDefinitionId])
+}
+
+model Deck {
+  id        String        @id @default(cuid())
+  name      String
+  mode      String
+  version   Int
+  isDefault Boolean       @default(false)
+  status    PublishStatus @default(draft)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  @@unique([name, version])
+}
+
+model DeckCard {
+  deckId String
+  cardId String
+  weight Int    @default(1)
+
+  @@id([deckId, cardId])
+}
+
+model DisasterScenario {
+  id               String        @id @default(cuid())
+  title            String
+  description      String
+  requirementsJson Json
+  difficulty       String
+  weight           Int           @default(1)
+  status           PublishStatus @default(draft)
+
+  @@index([difficulty, status])
+}
+
+model BunkerConfig {
+  id              String        @id @default(cuid())
+  capacityFormula String
+  resourcesJson   Json
+  modulesJson     Json
+  defectsJson     Json
+  version         Int
+  status          PublishStatus @default(draft)
+
+  @@index([status, version])
+}
+
+model Vote {
+  id           String   @id @default(cuid())
+  matchId      String
+  round        Int
+  voterUserId  String
+  targetUserId String
+  type         String
+  createdAt    DateTime @default(now())
+
+  @@unique([matchId, round, voterUserId])
+  @@index([targetUserId])
+}
+
+model ChatMessage {
+  id               String   @id @default(cuid())
+  roomId           String
+  matchId          String?
+  authorUserId     String
+  text             String
+  moderationStatus String   @default("posted")
+  createdAt        DateTime @default(now())
+
+  @@index([roomId, createdAt])
+  @@index([moderationStatus])
+}
+
+model Report {
+  id              String   @id @default(cuid())
+  reporterUserId  String
+  targetUserId    String?
+  targetMessageId String?
+  reason          String
+  evidenceJson    Json?
+  status          String   @default("new")
+  resolution      String?
+  createdAt       DateTime @default(now())
+
+  reporter        User     @relation("Reporter", fields: [reporterUserId], references: [id])
+
+  @@index([status, createdAt])
+  @@index([targetUserId])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String
+  entityType String
+  entityId   String
+  action     String
+  beforeJson Json?
+  afterJson  Json?
+  ip         String?
+  requestId  String
+  createdAt  DateTime @default(now())
+
+  actor      User     @relation("AuditActor", fields: [actorId], references: [id])
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId])
+}
+
+model FeatureFlag {
+  key            String
+  env            String
+  schemaVersion  Int
+  enabled        Boolean
+  rolloutPercent Int
+  rolesJson      Json?
+  conditionsJson Json?
+  status         PublishStatus @default(draft)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@id([key, env])
+}
+
+model GameRuleSet {
+  id               String        @id @default(cuid())
+  name             String
+  version          Int
+  mode             String
+  roomType         String
+  localeScope      String
+  schemaVersion    Int
+  rulesJson        Json
+  stateMachineJson Json
+  status           PublishStatus @default(draft)
+  createdAt        DateTime      @default(now())
+
+  rooms            Room[]
+
+  @@unique([name, version])
+  @@index([mode, status])
+}
+
+model LocalizationKey {
+  key           String
+  locale        String
+  value         String
+  namespace     String
+  status        String
+  schemaVersion Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@id([key, locale])
+}
