@@ -9,6 +9,7 @@
     "resolveJsonModule": true,
     "baseUrl": ".",
     "paths": {
+      "@bunker/shared": ["packages/shared/src/index.ts"],
       "@bunker/shared/*": ["packages/shared/src/*"]
     }
   }
