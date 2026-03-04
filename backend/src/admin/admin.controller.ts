@@ -1,7 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AdminGuard, JwtAuthGuard } from '../auth/guards';
-import { BanUserDto, FilterWordDto, PoolItemDto } from './dto';
+import { BanUserDto, FilterWordDto, GameRulesDto, PoolItemDto } from './dto';
 import { AdminService, PoolType } from './admin.service';
 
 @ApiTags('admin')
@@ -69,5 +69,25 @@ export class AdminController {
   @Delete('pools/:type/:id')
   deletePoolItem(@Param('type') type: PoolType, @Param('id') id: string) {
     return this.admin.deletePoolItem(type, id);
+  }
+
+  @Get('game-rules')
+  listGameRules() {
+    return this.admin.listGameRules();
+  }
+
+  @Post('game-rules')
+  createGameRules(@Body() body: GameRulesDto) {
+    return this.admin.createGameRules(body);
+  }
+
+  @Patch('game-rules/:id')
+  updateGameRules(@Param('id') id: string, @Body() body: GameRulesDto) {
+    return this.admin.updateGameRules(id, body);
+  }
+
+  @Delete('game-rules/:id')
+  deleteGameRules(@Param('id') id: string) {
+    return this.admin.deleteGameRules(id);
   }
 }

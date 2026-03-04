@@ -9,6 +9,7 @@ type LobbySettingsInput = {
   initialRevealedCount?: number;
   apocalypseTypeId?: string;
   bunkerLocationTypeId?: string;
+  gameRulesId?: string;
 };
 
 @Injectable()
@@ -19,29 +20,46 @@ export class LobbyService {
   ) {}
 
   async create(settings: LobbySettingsInput) {
-    const existing = await this.prisma.lobby.findFirst({ where: { isActive: true } });
-    if (existing) return existing;
+    return this.prisma.$transaction(async (tx: any) => {
+      const existing = await tx.lobby.findFirst({ where: { isActive: true } });
+      if (existing) return existing;
 
-    const voteTimerSec = settings.voteTimerSec ?? Number(this.configService.get('VOTING_DURATION_SECONDS') ?? 60);
-    const revealTimerSec = settings.revealTimerSec ?? Number(this.configService.get('OPEN_CHARACTERISTIC_DURATION_SECONDS') ?? 30);
-    const initialRevealedCount = settings.initialRevealedCount ?? 1;
+      const defaultRules = await tx.gameRules.findUnique({ where: { key: 'bunker_classic' } });
+      const selectedRules = settings.gameRulesId
+        ? await tx.gameRules.findUnique({ where: { id: settings.gameRulesId } })
+        : defaultRules;
 
-    return this.prisma.lobby.create({
-      data: {
-        playersLimit: settings.playersLimit,
-        voteTimerSec,
-        revealTimerSec,
-        initialRevealedCount,
-        apocalypseTypeId: settings.apocalypseTypeId,
-        bunkerLocationTypeId: settings.bunkerLocationTypeId,
-        isActive: true,
-        phase: 'REVEAL'
+      if (settings.gameRulesId && !selectedRules) {
+        throw new BadRequestException('Указанный набор правил не найден');
       }
+
+      const voteTimerSec = settings.voteTimerSec
+        ?? selectedRules?.votingDurationSec
+        ?? Number(this.configService.get('VOTING_DURATION_SECONDS') ?? 60);
+      const revealTimerSec = settings.revealTimerSec
+        ?? selectedRules?.openCharacteristicDurationSec
+        ?? Number(this.configService.get('OPEN_CHARACTERISTIC_DURATION_SECONDS') ?? 30);
+      const initialRevealedCount = settings.initialRevealedCount ?? selectedRules?.initialRevealedCount ?? 1;
+      const playersLimit = settings.playersLimit || selectedRules?.bunkerCapacity || 8;
+
+      return tx.lobby.create({
+        data: {
+          playersLimit,
+          voteTimerSec,
+          revealTimerSec,
+          initialRevealedCount,
+          gameRulesId: selectedRules?.id,
+          apocalypseTypeId: settings.apocalypseTypeId,
+          bunkerLocationTypeId: settings.bunkerLocationTypeId,
+          isActive: true,
+          phase: 'REVEAL'
+        }
+      });
     });
   }
 
   current() {
-    return this.prisma.lobby.findFirst({ where: { isActive: true }, include: { players: { include: { user: true } } } });
+    return this.prisma.lobby.findFirst({ where: { isActive: true }, include: { players: { include: { user: true } }, gameRules: true } });
   }
 
   async register(userId: string) {

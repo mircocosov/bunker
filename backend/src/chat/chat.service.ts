@@ -34,6 +34,30 @@ export class ChatService {
     }
     this.lastSent.set(userId, now);
 
+    const [activeLobby, banned] = await Promise.all([
+      this.prisma.lobby.findFirst({ where: { isActive: true }, select: { id: true } }),
+      this.prisma.user.findUnique({ where: { id: userId }, select: { twitchNick: true } })
+    ]);
+
+    if (!activeLobby) {
+      throw new BadRequestException({ message: 'Игра не запущена: чат временно недоступен' });
+    }
+
+    const membership = await this.prisma.lobbyPlayer.findFirst({
+      where: { lobbyId: activeLobby.id, userId, status: { in: ['ALIVE', 'SPECTATOR'] } },
+      select: { id: true }
+    });
+    if (!membership) {
+      throw new BadRequestException({ message: 'Чат доступен только участникам текущей игры' });
+    }
+
+    if (banned?.twitchNick) {
+      const isBanned = await this.prisma.bannedUser.findUnique({ where: { twitchNick: banned.twitchNick } });
+      if (isBanned) {
+        throw new BadRequestException({ message: 'Пользователь находится в чёрном списке' });
+      }
+    }
+
     const words = await this.prisma.chatFilterWord.findMany();
     let filtered = trimmedText;
     for (const w of words) {

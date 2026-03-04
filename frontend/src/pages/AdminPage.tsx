@@ -104,10 +104,39 @@ export function AdminPage() {
 }
 
 function GameAdminSection() {
+  const fields: FieldConfig[] = [
+    { key: 'key', label: 'Ключ' },
+    { key: 'title', label: 'Название' },
+    { key: 'description', label: 'Описание' },
+    { key: 'bunkerCapacity', label: 'Вместимость бункера' },
+    { key: 'discussionDurationSec', label: 'Обсуждение (сек)' },
+    { key: 'votingDurationSec', label: 'Голосование (сек)' },
+    { key: 'openCharacteristicDurationSec', label: 'Открытие характеристики (сек)' },
+    { key: 'initialRevealedCount', label: 'Открытий в начале' },
+    { key: 'revealOrderRaw', label: 'Порядок раскрытия (через запятую)' },
+    { key: 'actionCardsEnabled', label: 'Карты действий включены', type: 'checkbox' },
+    { key: 'canUseActionCardAfterReveal', label: 'Разрешить карту после раскрытия', type: 'checkbox' },
+    { key: 'winCondition', label: 'Условие победы' },
+    { key: 'finalRoundLimit', label: 'Лимит раундов (опц.)' }
+  ];
+
   return (
     <div className="space-y-3">
       <h1 className="text-xl font-semibold">Игра</h1>
-      <p className="text-sm text-[var(--text-muted)]">Раздел для управления игрой. Создание лобби и старт матча доступны на главной странице в кнопке «Начать игру» для админа.</p>
+      <p className="text-sm text-[var(--text-muted)]">Базовые и кастомные правила игры. Рекомендуется хранить и менять логику раундов только здесь.</p>
+      <CrudSection title="Наборы правил (GameRules)" endpoint="/admin/game-rules" fields={fields} transformForSubmit={(form) => ({
+        ...form,
+        bunkerCapacity: Number(form.bunkerCapacity),
+        discussionDurationSec: Number(form.discussionDurationSec),
+        votingDurationSec: Number(form.votingDurationSec),
+        openCharacteristicDurationSec: Number(form.openCharacteristicDurationSec),
+        initialRevealedCount: Number(form.initialRevealedCount),
+        revealOrder: String(form.revealOrderRaw ?? '').split(',').map((part) => part.trim()).filter(Boolean),
+        finalRoundLimit: form.finalRoundLimit ? Number(form.finalRoundLimit) : undefined
+      })} transformForEdit={(item) => ({
+        ...item,
+        revealOrderRaw: Array.isArray(item.revealOrder) ? item.revealOrder.join(', ') : ''
+      })} />
     </div>
   );
 }
@@ -213,7 +242,7 @@ function SceneSection({ title, endpoint }: { title: string; endpoint: string }) 
   );
 }
 
-function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete = false }: { title: string; endpoint: string; fields: FieldConfig[]; deleteById?: boolean; onlyDelete?: boolean }) {
+function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete = false, transformForSubmit, transformForEdit }: { title: string; endpoint: string; fields: FieldConfig[]; deleteById?: boolean; onlyDelete?: boolean; transformForSubmit?: (form: Record<string, string | boolean>) => Record<string, any>; transformForEdit?: (item: CrudItem) => Record<string, any> }) {
   const [items, setItems] = useState<CrudItem[]>([]);
   const [form, setForm] = useState<Record<string, string | boolean>>({});
   const [editing, setEditing] = useState<CrudItem | null>(null);
@@ -235,10 +264,10 @@ function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete =
   const submit = async () => {
     try {
       if (editing) {
-        await api.patch(`${endpoint}/${editing.id}`, form);
+        await api.patch(`${endpoint}/${editing.id}`, transformForSubmit ? transformForSubmit(form) : form);
         setEditing(null);
       } else {
-        await api.post(endpoint, form);
+        await api.post(endpoint, transformForSubmit ? transformForSubmit(form) : form);
       }
       setForm({});
       setSuccess('Сохранено');
@@ -298,7 +327,11 @@ function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete =
         {items.map((item) => (
           <div key={item.id} className="flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 p-2">
             <div className="flex-1 text-sm">{fields.map((f) => `${f.label}: ${String(item[f.key] ?? '-')}`).join(' · ')}</div>
-            {!onlyDelete && <button className="btn-secondary" onClick={() => { setEditing(item); setForm(Object.fromEntries(fields.map((f) => [f.key, item[f.key] ?? (f.type === 'checkbox' ? false : '')]))); }}>Редактировать</button>}
+            {!onlyDelete && <button className="btn-secondary" onClick={() => {
+              setEditing(item);
+              const source = transformForEdit ? transformForEdit(item) : item;
+              setForm(Object.fromEntries(fields.map((f) => [f.key, source[f.key] ?? (f.type === 'checkbox' ? false : '')])));
+            }}>Редактировать</button>}
             <button className="btn-secondary" onClick={() => remove(item.id)}>{deleteById ? 'Разбанить' : 'Удалить'}</button>
           </div>
         ))}

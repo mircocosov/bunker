@@ -1,6 +1,5 @@
 import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Role } from '@prisma/client';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma.service';
 
@@ -10,8 +9,8 @@ export class AuthService {
 
   constructor(private prisma: PrismaService, private jwt: JwtService, private cfg: ConfigService) {}
 
-  getCodeTtlMs() {
-    return Number(this.cfg.get<string>('AUTH_CODE_TTL_MS') ?? 15_000);
+  getCodeTtlSeconds() {
+    return Number(this.cfg.get<string>('AUTH_CODE_TTL_SECONDS') ?? 15);
   }
 
   generateCode() {
@@ -20,10 +19,10 @@ export class AuthService {
 
   async requestCode(twitchNick: string) {
     const code = this.generateCode();
-    const ttlMs = this.getCodeTtlMs();
-    const expiresAt = new Date(Date.now() + ttlMs);
+    const ttlSeconds = this.getCodeTtlSeconds();
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000);
     await this.prisma.authAttempt.create({ data: { twitchNick, code, expiresAt } });
-    return { code, ttlMs, expiresAt };
+    return { code, ttlSeconds, expiresAt };
   }
 
   async verifyByChat(senderNick: string, message: string) {
@@ -55,7 +54,7 @@ export class AuthService {
     if (!attempt.consumedAt) return null;
 
     const admins = (this.cfg.get<string>('ADMINS') ?? '').split(',').filter(Boolean);
-    const role = admins.some((admin) => admin.toLowerCase() === normalizedNick) ? Role.ADMIN : Role.USER;
+    const role = admins.some((admin) => admin.toLowerCase() === normalizedNick) ? 'ADMIN' : 'USER';
     const user = await this.prisma.user.upsert({
       where: { twitchNick: attempt.twitchNick },
       update: { role },
@@ -73,7 +72,7 @@ export class AuthService {
     };
   }
 
-  sign(userId: string, twitchNick: string, role: Role) {
+  sign(userId: string, twitchNick: string, role: 'ADMIN' | 'USER') {
     return this.jwt.sign({ userId, twitchNick, role });
   }
 

@@ -1,4 +1,4 @@
-import { IsBoolean, IsIn, IsNotEmpty, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsBoolean, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, MaxLength, Min } from 'class-validator';
 
 export class BanUserDto {
   @IsString()
@@ -48,4 +48,57 @@ export class PoolItemDto {
   @IsString()
   @IsNotEmpty()
   name?: string;
+}
+
+export class GameRulesDto {
+  @IsString()
+  @IsNotEmpty()
+  key!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  title!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  description?: string;
+
+  @IsInt()
+  @Min(1)
+  bunkerCapacity!: number;
+
+  @IsInt()
+  @Min(1)
+  discussionDurationSec!: number;
+
+  @IsInt()
+  @Min(1)
+  votingDurationSec!: number;
+
+  @IsInt()
+  @Min(1)
+  openCharacteristicDurationSec!: number;
+
+  @IsInt()
+  @Min(1)
+  initialRevealedCount!: number;
+
+  @IsArray()
+  revealOrder!: string[];
+
+  @IsBoolean()
+  actionCardsEnabled!: boolean;
+
+  @IsBoolean()
+  canUseActionCardAfterReveal!: boolean;
+
+  @IsString()
+  @IsNotEmpty()
+  winCondition!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  finalRoundLimit?: number;
 }

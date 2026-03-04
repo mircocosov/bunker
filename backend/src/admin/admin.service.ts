@@ -71,6 +71,22 @@ export class AdminService {
     return delegate.delete({ where: { id } });
   }
 
+  listGameRules() {
+    return this.prisma.gameRules.findMany({ orderBy: { key: 'asc' } });
+  }
+
+  createGameRules(payload: Record<string, any>) {
+    return this.prisma.gameRules.create({ data: this.normalizeGameRulesPayload(payload) });
+  }
+
+  updateGameRules(id: string, payload: Record<string, any>) {
+    return this.prisma.gameRules.update({ where: { id }, data: this.normalizeGameRulesPayload(payload) });
+  }
+
+  deleteGameRules(id: string) {
+    return this.prisma.gameRules.delete({ where: { id } });
+  }
+
   private poolDelegate(type: PoolType): any {
     const key = poolMap[type];
     return (this.prisma as any)[key];
@@ -112,5 +128,23 @@ export class AdminService {
     }
 
     return { value: payload.value };
+  }
+
+  private normalizeGameRulesPayload(payload: Record<string, any>) {
+    return {
+      key: payload.key,
+      title: payload.title,
+      description: payload.description || null,
+      bunkerCapacity: Number(payload.bunkerCapacity),
+      discussionDurationSec: Number(payload.discussionDurationSec),
+      votingDurationSec: Number(payload.votingDurationSec),
+      openCharacteristicDurationSec: Number(payload.openCharacteristicDurationSec),
+      initialRevealedCount: Number(payload.initialRevealedCount),
+      revealOrder: Array.isArray(payload.revealOrder) ? payload.revealOrder : [],
+      actionCardsEnabled: Boolean(payload.actionCardsEnabled),
+      canUseActionCardAfterReveal: Boolean(payload.canUseActionCardAfterReveal),
+      winCondition: payload.winCondition,
+      finalRoundLimit: payload.finalRoundLimit ? Number(payload.finalRoundLimit) : null
+    };
   }
 }

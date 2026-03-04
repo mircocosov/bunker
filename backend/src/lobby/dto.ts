@@ -28,4 +28,8 @@ export class CreateLobbyDto {
   @IsOptional()
   @IsString()
   bunkerLocationTypeId?: string;
+
+  @IsOptional()
+  @IsString()
+  gameRulesId?: string;
 }

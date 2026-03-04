@@ -66,11 +66,15 @@ export function LobbyPage() {
   const [apocalypseTypes, setApocalypseTypes] = useState<Array<{ id: string; name: string }>>([]);
   const [bunkerLocations, setBunkerLocations] = useState<Array<{ id: string; name: string }>>([]);
   const [scenePresets, setScenePresets] = useState<ScenePreset[]>([]);
+  const [gameRules, setGameRules] = useState<Array<{ id: string; key: string; title: string; votingDurationSec: number }>>([]);
+  const [currentPhase, setCurrentPhase] = useState<'REVEAL' | 'VOTE' | 'TIEBREAK'>('REVEAL');
+  const [phaseTimerSec, setPhaseTimerSec] = useState(0);
   const [startForm, setStartForm] = useState({
     playersLimit: '8',
     apocalypseTypeId: 'random',
     bunkerLocationTypeId: 'random',
-    environment: 'random'
+    environment: 'random',
+    gameRulesId: ''
   });
 
   const isAdmin = useMemo(() => decodeRoleFromToken(token) === 'ADMIN', [token]);
@@ -80,6 +84,8 @@ export function LobbyPage() {
       const { data } = await api.get('/lobby');
       const lobbyPlayers = Array.isArray(data?.players) ? data.players : [];
       setRegistrationOpen(Boolean(data?.isActive));
+      setCurrentPhase((data?.phase as 'REVEAL' | 'VOTE' | 'TIEBREAK') ?? 'REVEAL');
+      setPhaseTimerSec(Number(data?.phase === 'VOTE' ? data?.voteTimerSec : data?.revealTimerSec) || 0);
       setPlayers(
         lobbyPlayers.map((player: any, index: number) => ({
           id: String(player.id),
@@ -104,7 +110,13 @@ export function LobbyPage() {
 
     Promise.all([
       api.get('/admin/pools/apocalypseTypes').then((res) => setApocalypseTypes(Array.isArray(res.data) ? res.data : [])).catch(() => setApocalypseTypes([])),
-      api.get('/admin/pools/bunkerLocations').then((res) => setBunkerLocations(Array.isArray(res.data) ? res.data : [])).catch(() => setBunkerLocations([]))
+      api.get('/admin/pools/bunkerLocations').then((res) => setBunkerLocations(Array.isArray(res.data) ? res.data : [])).catch(() => setBunkerLocations([])),
+      api.get('/admin/game-rules').then((res) => {
+        const rows = Array.isArray(res.data) ? res.data : [];
+        setGameRules(rows);
+        const defaultRules = rows.find((rule: any) => rule.key === 'bunker_classic');
+        setStartForm((prev) => ({ ...prev, gameRulesId: String(defaultRules?.id ?? '') }));
+      }).catch(() => setGameRules([]))
     ]);
   }, [isAdmin]);
 
@@ -234,7 +246,8 @@ export function LobbyPage() {
       await api.post('/lobby', {
         playersLimit: Number(startForm.playersLimit) || 8,
         apocalypseTypeId: startForm.apocalypseTypeId === 'random' ? undefined : startForm.apocalypseTypeId,
-        bunkerLocationTypeId: startForm.bunkerLocationTypeId === 'random' ? undefined : startForm.bunkerLocationTypeId
+        bunkerLocationTypeId: startForm.bunkerLocationTypeId === 'random' ? undefined : startForm.bunkerLocationTypeId,
+        gameRulesId: startForm.gameRulesId || undefined
       });
 
       setShowStartModal(false);
@@ -256,7 +269,7 @@ export function LobbyPage() {
               layers={activeScenePreset?.layers ?? []}
               groundYPercent={activeScenePreset?.groundYPercent ?? 74}
             />
-            <HudOverlay phase="VOTE" timerSec={86} />
+            <HudOverlay phase={currentPhase} timerSec={phaseTimerSec} />
             {(isAdmin || registrationOpen) && !isRegistered && (
               <div className="absolute inset-0 z-20 grid place-items-center">
                 <button className="btn-primary px-10 py-4 text-xl" onClick={isAdmin ? () => setShowStartModal(true) : register}>{isAdmin ? 'Начать игру' : 'Зарегистрироваться'}</button>
@@ -286,6 +299,15 @@ export function LobbyPage() {
                       <option value="random">Рандом</option>
                       {bunkerLocations.map((item) => (
                         <option key={item.id} value={item.id}>{item.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="field">
+                    Набор правил
+                    <select className="input" value={startForm.gameRulesId} onChange={(e) => setStartForm((prev) => ({ ...prev, gameRulesId: e.target.value }))}>
+                      <option value="">По умолчанию</option>
+                      {gameRules.map((item) => (
+                        <option key={item.id} value={item.id}>{item.title}</option>
                       ))}
                     </select>
                   </label>
