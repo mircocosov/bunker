@@ -58,7 +58,7 @@ export function LoginPage() {
       clearRefreshTimer();
       refreshTimerRef.current = window.setTimeout(() => {
         void request();
-      }, data.ttlMs ?? 15000);
+      }, (data.ttlSeconds ?? 15) * 1000);
       startPolling(nick);
     } catch {
       setError('Не удалось получить код. Попробуйте ещё раз.');

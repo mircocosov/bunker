@@ -38,8 +38,9 @@ export class ChatGateway implements OnGatewayConnection {
     }
 
     try {
-      const saved = await this.chat.send(client.data.user.userId, body.message);
+      const saved = await this.chat.send(client.data.user.userId, body?.message ?? '');
       this.server.to('lobby').emit('chat:newMessage', saved);
+      client.emit('chat:delivered', { id: saved.id });
     } catch (error) {
       if (error instanceof BadRequestException) {
         const payload = error.getResponse();

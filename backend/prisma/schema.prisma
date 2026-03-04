@@ -64,9 +64,29 @@ model Lobby {
   revealTimerSec       Int
   initialRevealedCount Int
   phase                String
+  gameRulesId          String?
   apocalypseTypeId     String?
   bunkerLocationTypeId String?
+  gameRules            GameRules?    @relation(fields: [gameRulesId], references: [id])
   players              LobbyPlayer[]
+}
+
+model GameRules {
+  id                          String  @id @default(uuid())
+  key                         String  @unique
+  title                       String
+  description                 String?
+  bunkerCapacity              Int
+  discussionDurationSec       Int
+  votingDurationSec           Int
+  openCharacteristicDurationSec Int
+  initialRevealedCount        Int
+  revealOrder                 Json
+  actionCardsEnabled          Boolean @default(true)
+  canUseActionCardAfterReveal Boolean @default(true)
+  winCondition                String
+  finalRoundLimit             Int?
+  lobbies                     Lobby[]
 }
 
 model LobbyPlayer {
