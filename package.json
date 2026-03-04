@@ -1,18 +1,32 @@
 {
-  "name": "bunker",
+  "name": "bunker-open",
   "private": true,
   "workspaces": [
-    "backend",
-    "frontend"
+    "apps/*",
+    "packages/*"
   ],
   "scripts": {
-    "dev": "npm-run-all --parallel dev:backend dev:frontend",
-    "dev:backend": "npm --workspace backend run start:dev",
-    "dev:frontend": "npm --workspace frontend run dev",
-    "test": "npm --workspace backend run test",
-    "check:no-binaries": "bash ./scripts/check-no-binaries.sh"
+    "dev": "npm-run-all --parallel dev:api dev:web",
+    "dev:api": "npm run -w @bunker/api start:dev",
+    "dev:web": "npm run -w @bunker/web dev",
+    "build": "npm run -ws build",
+    "lint": "npm run -ws lint",
+    "test": "npm run -ws test",
+    "prepare": "husky"
   },
   "devDependencies": {
-    "npm-run-all": "^4.1.5"
+    "@typescript-eslint/eslint-plugin": "^8.12.2",
+    "@typescript-eslint/parser": "^8.12.2",
+    "eslint": "^9.13.0",
+    "husky": "^9.1.6",
+    "lint-staged": "^15.2.10",
+    "npm-run-all": "^4.1.5",
+    "prettier": "^3.3.3",
+    "typescript": "^5.6.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx,json,md}": [
+      "prettier --check"
+    ]
   }
 }
