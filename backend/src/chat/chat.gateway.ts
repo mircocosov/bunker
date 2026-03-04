@@ -20,7 +20,7 @@ export class ChatGateway implements OnGatewayConnection {
       client.join('lobby');
       const history = await this.chat.history();
       client.emit('chat:history', history);
-      client.emit('chat:config', { cooldownMs: this.chat.getCooldownMs() });
+      client.emit('chat:config', { cooldownSeconds: this.chat.getCooldownSeconds() });
     } catch {
       client.emit('chat:error', { message: 'Чат недоступен: нет соединения' });
       client.disconnect();

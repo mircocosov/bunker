@@ -13,19 +13,6 @@ import { PcOnlyGuard } from '../components/layout/PcOnlyGuard';
 import { SceneView } from '../components/game/SceneView';
 import { HudOverlay } from '../components/game/HudOverlay';
 
-const demoPlayers: UiPlayer[] = [
-  { id: '1', number: 1, nick: 'Kira', status: 'ALIVE', revealed: [{ type: 'profession', value: 'Инженер' }, { type: 'health', value: 'Здоров' }] },
-  { id: '2', number: 2, nick: 'Maks', status: 'ALIVE', revealed: [{ type: 'phobia', value: 'Темнота' }, { type: 'hobby', value: 'Рыбалка' }] },
-  { id: '3', number: 3, nick: 'Lina', status: 'KICKED', revealed: [] },
-  { id: '4', number: 4, nick: 'Dima', status: 'SPECTATOR', revealed: [] }
-];
-
-const demoLayers: SceneLayerUi[] = [
-  { id: 'sky', kind: 'SKY', assetKey: '/assets/scenes/sky.png', zIndex: 1 },
-  { id: 'mid', kind: 'MID', assetKey: '/assets/scenes/sky.png', zIndex: 2, offsetY: 14, scale: 1.05 },
-  { id: 'ground', kind: 'GROUND', assetKey: '/assets/scenes/ground.png', zIndex: 3, offsetY: 0 }
-];
-
 type ScenePreset = {
   id: string;
   apocalypseTypeId: string;
@@ -66,13 +53,14 @@ export function LobbyPage() {
   const token = useAuthStore((s) => s.token);
   const navigate = useNavigate();
   const [messages, setMessages] = useState<UiMessage[]>([]);
-  const [cooldownMs, setCooldownMs] = useState(2000);
+  const [cooldownSeconds, setCooldownSeconds] = useState(2);
   const [cooldownUntil, setCooldownUntil] = useState(0);
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [sendError, setSendError] = useState<string | null>(null);
   const [isRegistered, setIsRegistered] = useState(false);
   const [registrationOpen, setRegistrationOpen] = useState(false);
   const [socket, setSocket] = useState<Socket | null>(null);
+  const [players, setPlayers] = useState<UiPlayer[]>([]);
   const [showStartModal, setShowStartModal] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
   const [apocalypseTypes, setApocalypseTypes] = useState<Array<{ id: string; name: string }>>([]);
@@ -87,8 +75,28 @@ export function LobbyPage() {
 
   const isAdmin = useMemo(() => decodeRoleFromToken(token) === 'ADMIN', [token]);
 
+  const refreshLobby = async () => {
+    try {
+      const { data } = await api.get('/lobby');
+      const lobbyPlayers = Array.isArray(data?.players) ? data.players : [];
+      setRegistrationOpen(Boolean(data?.isActive));
+      setPlayers(
+        lobbyPlayers.map((player: any, index: number) => ({
+          id: String(player.id),
+          number: index + 1,
+          nick: player.user?.twitchNick ?? `Игрок ${index + 1}`,
+          status: player.status,
+          revealed: []
+        }))
+      );
+    } catch {
+      setRegistrationOpen(false);
+      setPlayers([]);
+    }
+  };
+
   useEffect(() => {
-    api.get('/lobby').then((res) => setRegistrationOpen(Boolean(res.data?.isActive))).catch(() => setRegistrationOpen(false));
+    refreshLobby();
   }, []);
 
   useEffect(() => {
@@ -160,14 +168,14 @@ export function LobbyPage() {
     nextSocket.on('disconnect', () => setConnectionError('Чат недоступен: нет соединения'));
     nextSocket.on('connect_error', () => setConnectionError('Чат недоступен: нет соединения'));
 
-    nextSocket.on('chat:config', (cfg: { cooldownMs: number }) => {
-      setCooldownMs(cfg.cooldownMs || 2000);
+    nextSocket.on('chat:config', (cfg: { cooldownSeconds: number }) => {
+      setCooldownSeconds(cfg.cooldownSeconds || 2);
     });
 
-    nextSocket.on('chat:error', (error: { message?: string; retryAfterMs?: number; cooldownMs?: number }) => {
-      if (error.cooldownMs) setCooldownMs(error.cooldownMs);
-      if (typeof error.retryAfterMs === 'number') {
-        setCooldownUntil(Date.now() + error.retryAfterMs);
+    nextSocket.on('chat:error', (error: { message?: string; retryAfterSeconds?: number; cooldownSeconds?: number }) => {
+      if (error.cooldownSeconds) setCooldownSeconds(error.cooldownSeconds);
+      if (typeof error.retryAfterSeconds === 'number') {
+        setCooldownUntil(Date.now() + error.retryAfterSeconds * 1000);
         setSendError(error.message ?? 'Подождите перед следующим сообщением');
         return;
       }
@@ -200,7 +208,7 @@ export function LobbyPage() {
     }
     socket.emit('chat:send', { message: text });
     setSendError(null);
-    setCooldownUntil(Date.now() + cooldownMs);
+    setCooldownUntil(Date.now() + cooldownSeconds * 1000);
   };
 
   const register = async () => {
@@ -212,6 +220,7 @@ export function LobbyPage() {
     try {
       await api.post('/lobby/register');
       setIsRegistered(true);
+      await refreshLobby();
     } catch {
       navigate('/login');
     }
@@ -224,15 +233,12 @@ export function LobbyPage() {
       setStartError(null);
       await api.post('/lobby', {
         playersLimit: Number(startForm.playersLimit) || 8,
-        voteTimerSec: 60,
-        revealTimerSec: 30,
-        initialRevealedCount: 1,
         apocalypseTypeId: startForm.apocalypseTypeId === 'random' ? undefined : startForm.apocalypseTypeId,
         bunkerLocationTypeId: startForm.bunkerLocationTypeId === 'random' ? undefined : startForm.bunkerLocationTypeId
       });
 
       setShowStartModal(false);
-      setRegistrationOpen(true);
+      await refreshLobby();
     } catch (error: any) {
       setStartError(error?.response?.data?.message ?? 'Не удалось создать лобби');
     }
@@ -242,12 +248,12 @@ export function LobbyPage() {
     <PcOnlyGuard>
       <GameLayoutDesktop
         leftTop={<LeftSidebarMyCard />}
-        leftBottom={<LeftSidebarChat messages={messages} onSend={sendMessage} cooldownMs={cooldownMs} cooldownUntil={cooldownUntil} connectionError={connectionError} sendError={sendError} />}
+        leftBottom={<LeftSidebarChat messages={messages} onSend={sendMessage} cooldownMs={cooldownSeconds * 1000} cooldownUntil={cooldownUntil} connectionError={connectionError} sendError={sendError} />}
         center={
           <CenterScene>
             <SceneView
-              players={demoPlayers}
-              layers={activeScenePreset?.layers?.length ? activeScenePreset.layers : demoLayers}
+              players={players}
+              layers={activeScenePreset?.layers ?? []}
               groundYPercent={activeScenePreset?.groundYPercent ?? 74}
             />
             <HudOverlay phase="VOTE" timerSec={86} />
@@ -301,7 +307,7 @@ export function LobbyPage() {
             )}
           </CenterScene>
         }
-        right={<RightSidebarPlayers players={demoPlayers} isAdmin={isAdmin} />}
+        right={<RightSidebarPlayers players={players} isAdmin={isAdmin} />}
       />
     </PcOnlyGuard>
   );

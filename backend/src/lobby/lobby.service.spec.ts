@@ -1,7 +1,7 @@
 import { LobbyService } from './lobby.service';
 
 describe('LobbyService', () => {
-  const makeService = () => {
+  const makeService = (env: Record<string, string | undefined> = {}) => {
     const prisma = {
       lobby: {
         findFirst: jest.fn(),
@@ -9,7 +9,11 @@ describe('LobbyService', () => {
       }
     } as any;
 
-    return { service: new LobbyService(prisma), prisma };
+    const configService = {
+      get: (key: string) => env[key]
+    } as any;
+
+    return { service: new LobbyService(prisma, configService), prisma };
   };
 
   it('returns existing active lobby instead of throwing when create is called repeatedly', async () => {
@@ -59,6 +63,26 @@ describe('LobbyService', () => {
         isActive: true,
         phase: 'REVEAL'
       }
+    });
+  });
+
+  it('uses duration defaults from env when timers are omitted', async () => {
+    const { service, prisma } = makeService({
+      VOTING_DURATION_SECONDS: '77',
+      OPEN_CHARACTERISTIC_DURATION_SECONDS: '33'
+    });
+
+    prisma.lobby.findFirst.mockResolvedValue(null);
+    prisma.lobby.create.mockResolvedValue({ id: 'lobby-3' });
+
+    await service.create({ playersLimit: 6 });
+
+    expect(prisma.lobby.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        voteTimerSec: 77,
+        revealTimerSec: 33,
+        initialRevealedCount: 1
+      })
     });
   });
 });
