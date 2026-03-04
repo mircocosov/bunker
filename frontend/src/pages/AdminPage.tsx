@@ -121,8 +121,13 @@ function SceneSection({ title, endpoint }: { title: string; endpoint: string }) 
   const [success, setSuccess] = useState<string | null>(null);
 
   const load = async () => {
-    const { data } = await api.get(endpoint);
-    setItems(Array.isArray(data) ? data : []);
+    try {
+      const { data } = await api.get(endpoint);
+      setItems(Array.isArray(data) ? data : []);
+      setError(null);
+    } catch {
+      setError('Не удалось загрузить данные');
+    }
   };
 
   useEffect(() => { load(); }, [endpoint]);
@@ -212,29 +217,50 @@ function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete =
   const [items, setItems] = useState<CrudItem[]>([]);
   const [form, setForm] = useState<Record<string, string | boolean>>({});
   const [editing, setEditing] = useState<CrudItem | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
 
   const load = async () => {
-    const { data } = await api.get(endpoint);
-    setItems(Array.isArray(data) ? data : []);
+    try {
+      const { data } = await api.get(endpoint);
+      setItems(Array.isArray(data) ? data : []);
+      setError(null);
+    } catch {
+      setError('Не удалось загрузить данные');
+    }
   };
 
   useEffect(() => { load(); }, [endpoint]);
 
   const submit = async () => {
-    if (editing) {
-      await api.patch(`${endpoint}/${editing.id}`, form);
-      setEditing(null);
-    } else {
-      await api.post(endpoint, form);
+    try {
+      if (editing) {
+        await api.patch(`${endpoint}/${editing.id}`, form);
+        setEditing(null);
+      } else {
+        await api.post(endpoint, form);
+      }
+      setForm({});
+      setSuccess('Сохранено');
+      setError(null);
+      await load();
+    } catch (e: any) {
+      setSuccess(null);
+      setError(e?.response?.data?.message ?? 'Не удалось сохранить запись');
     }
-    setForm({});
-    await load();
   };
 
   const remove = async (id: string) => {
     if (!window.confirm('Удалить запись?')) return;
-    await api.delete(`${endpoint}/${id}`);
-    await load();
+    try {
+      await api.delete(`${endpoint}/${id}`);
+      setSuccess('Удалено');
+      setError(null);
+      await load();
+    } catch {
+      setSuccess(null);
+      setError('Не удалось удалить запись');
+    }
   };
 
   return (
@@ -264,6 +290,9 @@ function CrudSection({ title, endpoint, fields, deleteById = false, onlyDelete =
           <button className="btn-primary mt-3" onClick={submit}>{editing ? 'Сохранить' : 'Добавить'}</button>
         </div>
       )}
+
+      {error && <p className="text-xs text-rose-300">{error}</p>}
+      {success && <p className="text-xs text-emerald-300">{success}</p>}
 
       <div className="max-h-[420px] space-y-2 overflow-y-auto pr-1">
         {items.map((item) => (

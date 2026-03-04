@@ -90,6 +90,7 @@ export class AdminService {
     if (type === 'actionCards') {
       return {
         type: payload.type,
+        changeField: payload.changeField || null,
         targetField: payload.targetField || null,
         upgradeText: payload.upgradeText || null
       };

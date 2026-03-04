@@ -1,18 +1,47 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../prisma.service';
+
+type LobbySettingsInput = {
+  playersLimit: number;
+  voteTimerSec?: number;
+  revealTimerSec?: number;
+  initialRevealedCount?: number;
+  apocalypseTypeId?: string;
+  bunkerLocationTypeId?: string;
+};
 
 @Injectable()
 export class LobbyService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private configService: ConfigService
+  ) {}
 
-  async create(settings: { playersLimit: number; voteTimerSec: number; revealTimerSec: number; initialRevealedCount: number; apocalypseTypeId?: string; bunkerLocationTypeId?: string }) {
+  async create(settings: LobbySettingsInput) {
     const existing = await this.prisma.lobby.findFirst({ where: { isActive: true } });
     if (existing) return existing;
-    return this.prisma.lobby.create({ data: { ...settings, isActive: true, phase: 'REVEAL' } });
+
+    const voteTimerSec = settings.voteTimerSec ?? Number(this.configService.get('VOTING_DURATION_SECONDS') ?? 60);
+    const revealTimerSec = settings.revealTimerSec ?? Number(this.configService.get('OPEN_CHARACTERISTIC_DURATION_SECONDS') ?? 30);
+    const initialRevealedCount = settings.initialRevealedCount ?? 1;
+
+    return this.prisma.lobby.create({
+      data: {
+        playersLimit: settings.playersLimit,
+        voteTimerSec,
+        revealTimerSec,
+        initialRevealedCount,
+        apocalypseTypeId: settings.apocalypseTypeId,
+        bunkerLocationTypeId: settings.bunkerLocationTypeId,
+        isActive: true,
+        phase: 'REVEAL'
+      }
+    });
   }
 
   current() {
-    return this.prisma.lobby.findFirst({ where: { isActive: true }, include: { players: true } });
+    return this.prisma.lobby.findFirst({ where: { isActive: true }, include: { players: { include: { user: true } } } });
   }
 
   async register(userId: string) {

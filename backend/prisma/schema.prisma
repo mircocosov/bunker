@@ -168,6 +168,7 @@ model Health {
 model ActionCard {
   id          String  @id @default(uuid())
   type        String
+  changeField String?
   targetField String?
   upgradeText String?
 }

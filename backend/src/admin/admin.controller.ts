@@ -1,6 +1,7 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { AdminGuard, JwtAuthGuard } from '../auth/guards';
+import { BanUserDto, FilterWordDto, PoolItemDto } from './dto';
 import { AdminService, PoolType } from './admin.service';
 
 @ApiTags('admin')
@@ -16,8 +17,8 @@ export class AdminController {
   }
 
   @Post('ban')
-  ban(@Body('twitchNick') twitchNick: string) {
-    return this.admin.ban(twitchNick);
+  ban(@Body() body: BanUserDto) {
+    return this.admin.ban(body.twitchNick);
   }
 
   @Delete('bans/:id')
@@ -36,13 +37,13 @@ export class AdminController {
   }
 
   @Post('chat-filter')
-  addFilterWord(@Body('word') word: string) {
-    return this.admin.addFilterWord(word);
+  addFilterWord(@Body() body: FilterWordDto) {
+    return this.admin.addFilterWord(body.word);
   }
 
   @Patch('chat-filter/:id')
-  updateFilterWord(@Param('id') id: string, @Body('word') word: string) {
-    return this.admin.updateFilterWord(id, word);
+  updateFilterWord(@Param('id') id: string, @Body() body: FilterWordDto) {
+    return this.admin.updateFilterWord(id, body.word);
   }
 
   @Delete('chat-filter/:id')
@@ -56,12 +57,12 @@ export class AdminController {
   }
 
   @Post('pools/:type')
-  createPoolItem(@Param('type') type: PoolType, @Body() payload: Record<string, any>) {
+  createPoolItem(@Param('type') type: PoolType, @Body() payload: PoolItemDto) {
     return this.admin.createPoolItem(type, payload);
   }
 
   @Patch('pools/:type/:id')
-  updatePoolItem(@Param('type') type: PoolType, @Param('id') id: string, @Body() payload: Record<string, any>) {
+  updatePoolItem(@Param('type') type: PoolType, @Param('id') id: string, @Body() payload: PoolItemDto) {
     return this.admin.updatePoolItem(type, id, payload);
   }
 
