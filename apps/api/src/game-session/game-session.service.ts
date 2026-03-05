@@ -1,8 +1,19 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { randomUUID } from 'crypto';
-import { AdminTraitsService, TraitCategory, TraitRecord } from '../admin-traits/admin-traits.service';
+import {
+  AdminTraitsService,
+  TraitCategory,
+  TraitRecord,
+} from '../admin-traits/admin-traits.service';
 import { AdminScenesService } from '../admin-scenes/admin-scenes.service';
-import { ActionCardRecord, AdminActionCardsService } from '../admin-action-cards/admin-action-cards.service';
+import {
+  ActionCardRecord,
+  AdminActionCardsService,
+} from '../admin-action-cards/admin-action-cards.service';
 import { ChatFilterService } from '../chat-filter/chat-filter.service';
 import { SettingsService } from '../settings/settings.service';
 import { BlacklistService } from '../blacklist/blacklist.service';
@@ -163,8 +174,12 @@ export class GameSessionService {
       throw new ConflictException('Not enough players to start');
     }
 
-    const selectedScene = this.currentGame.sceneMode === 'fixed' && this.currentGame.sceneId ? this.currentGame.sceneId : 'random';
-    const snapshot = {
+    const selectedScene: GameSnapshot['selectedScene'] =
+      this.currentGame.sceneMode === 'fixed' &&
+      this.currentGame.sceneId !== undefined
+        ? this.currentGame.sceneId
+        : 'random';
+    const snapshot: GameSnapshot = {
       settings: { ...this.settingsService.get() },
       traits: [
         ...this.traitsService.list('profession'),
@@ -182,20 +197,27 @@ export class GameSessionService {
 
     const playerActionCards: Record<string, ActionCardRecord[]> = {};
     for (const nickname of this.currentGame.players) {
-      playerActionCards[nickname] = this.drawPlayerActionCards(snapshot.actionCards, 2);
+      playerActionCards[nickname] = this.drawPlayerActionCards(
+        snapshot.actionCards,
+        2,
+      );
     }
 
-    this.currentGame = {
+    const startedGame: GlobalGameState = {
       ...this.currentGame,
       status: 'started',
       alivePlayers: [...this.currentGame.players],
       observers: [],
       snapshot,
-      playerProfiles: this.currentGame.players.map((nickname) => this.generatePlayerProfile(nickname)),
+      playerProfiles: this.currentGame.players.map((nickname) =>
+        this.generatePlayerProfile(nickname),
+      ),
       playerActionCards,
     };
 
-    return this.currentGame;
+    this.currentGame = startedGame;
+
+    return startedGame;
   }
 
   startRevealRound(): GlobalGameState {
@@ -205,7 +227,11 @@ export class GameSessionService {
     }
 
     const pendingNicknames = game.playerProfiles
-      .filter((profile) => game.alivePlayers.includes(profile.nickname) && profile.traits.some((trait) => !trait.revealed))
+      .filter(
+        (profile) =>
+          game.alivePlayers.includes(profile.nickname) &&
+          profile.traits.some((trait) => !trait.revealed),
+      )
       .map((profile) => profile.nickname);
 
     if (pendingNicknames.length === 0) {
@@ -226,9 +252,12 @@ export class GameSessionService {
       },
     };
 
-    this.revealRoundTimer = setTimeout(() => {
-      this.autoRevealPendingTraits();
-    }, Math.max(0, endsAtMs - Date.now()));
+    this.revealRoundTimer = setTimeout(
+      () => {
+        this.autoRevealPendingTraits();
+      },
+      Math.max(0, endsAtMs - Date.now()),
+    );
 
     return this.currentGame;
   }
@@ -239,7 +268,9 @@ export class GameSessionService {
       throw new ConflictException('Reveal round is not active');
     }
 
-    const profile = game.playerProfiles.find((item) => item.nickname === nickname);
+    const profile = game.playerProfiles.find(
+      (item) => item.nickname === nickname,
+    );
     if (!profile || !game.alivePlayers.includes(nickname)) {
       throw new NotFoundException('Player not found');
     }
@@ -256,12 +287,17 @@ export class GameSessionService {
     }
 
     trait.revealed = true;
-    const pendingNicknames = game.revealRound.pendingNicknames.filter((item) => item !== nickname);
+    const pendingNicknames = game.revealRound.pendingNicknames.filter(
+      (item) => item !== nickname,
+    );
 
     this.currentGame = {
       ...game,
       playerProfiles: [...game.playerProfiles],
-      revealRound: pendingNicknames.length > 0 ? { ...game.revealRound, pendingNicknames } : undefined,
+      revealRound:
+        pendingNicknames.length > 0
+          ? { ...game.revealRound, pendingNicknames }
+          : undefined,
     };
 
     if (pendingNicknames.length === 0) {
@@ -273,7 +309,11 @@ export class GameSessionService {
 
   startVoteRound(): GlobalGameState {
     const game = this.requireStartedGame();
-    if (game.voteRound && !game.voteRound.kickedNickname && !game.voteRound.tieCandidates) {
+    if (
+      game.voteRound &&
+      !game.voteRound.kickedNickname &&
+      !game.voteRound.tieCandidates
+    ) {
       throw new ConflictException('Vote round already active');
     }
 
@@ -290,9 +330,12 @@ export class GameSessionService {
       },
     };
 
-    this.voteRoundTimer = setTimeout(() => {
-      this.finishVoteRound();
-    }, Math.max(0, endsAtMs - Date.now()));
+    this.voteRoundTimer = setTimeout(
+      () => {
+        this.finishVoteRound();
+      },
+      Math.max(0, endsAtMs - Date.now()),
+    );
 
     return this.currentGame;
   }
@@ -303,8 +346,13 @@ export class GameSessionService {
       throw new ConflictException('Vote round is not active');
     }
 
-    if (!game.alivePlayers.includes(voter) || !game.alivePlayers.includes(target)) {
-      throw new ConflictException('Only alive players can vote for alive players');
+    if (
+      !game.alivePlayers.includes(voter) ||
+      !game.alivePlayers.includes(target)
+    ) {
+      throw new ConflictException(
+        'Only alive players can vote for alive players',
+      );
     }
 
     if (game.voteRound.votes.some((item) => item.voter === voter)) {
@@ -338,12 +386,17 @@ export class GameSessionService {
       throw new ConflictException('No votes in round');
     }
 
-    const kickedNickname = this.resolveKickFromCandidates(tieCandidates, twitchVotes);
+    const kickedNickname = this.resolveKickFromCandidates(
+      tieCandidates,
+      twitchVotes,
+    );
 
     this.currentGame = {
       ...game,
       alivePlayers: game.alivePlayers.filter((item) => item !== kickedNickname),
-      observers: game.observers.includes(kickedNickname) ? game.observers : [...game.observers, kickedNickname],
+      observers: game.observers.includes(kickedNickname)
+        ? game.observers
+        : [...game.observers, kickedNickname],
       voteRound: {
         ...voteRound,
         tieCandidates: tieCandidates.length > 1 ? tieCandidates : undefined,
@@ -354,8 +407,12 @@ export class GameSessionService {
     return this.currentGame;
   }
 
-
-  finishGame(survivors: string[]): { finished: true; survivors: string[]; bunkerSlots: number; gameId: string } {
+  finishGame(survivors: string[]): {
+    finished: true;
+    survivors: string[];
+    bunkerSlots: number;
+    gameId: string;
+  } {
     const game = this.requireStartedGame();
     const bunkerSlots = game.snapshot?.settings.bunkerSlots ?? 0;
 
@@ -370,7 +427,9 @@ export class GameSessionService {
 
     for (const nickname of survivors) {
       if (!game.alivePlayers.includes(nickname)) {
-        throw new NotFoundException(`Survivor ${nickname} is not alive in current game`);
+        throw new NotFoundException(
+          `Survivor ${nickname} is not alive in current game`,
+        );
       }
       this.characterService.addBunkerWin(nickname);
     }
@@ -405,9 +464,17 @@ export class GameSessionService {
       [nickname]: remainingCards,
     };
 
-    const bunkerUpgrades = selectedCard.scope === 'bunker_upgrade'
-      ? [...game.bunkerUpgrades, { nickname, cardId: selectedCard.id, description: selectedCard.description }]
-      : game.bunkerUpgrades;
+    const bunkerUpgrades =
+      selectedCard.scope === 'bunker_upgrade'
+        ? [
+            ...game.bunkerUpgrades,
+            {
+              nickname,
+              cardId: selectedCard.id,
+              description: selectedCard.description,
+            },
+          ]
+        : game.bunkerUpgrades;
 
     this.currentGame = {
       ...game,
@@ -418,20 +485,31 @@ export class GameSessionService {
     return this.currentGame;
   }
 
-  private resolveKickFromCandidates(candidates: string[], twitchVotes: number[]): string {
+  private resolveKickFromCandidates(
+    candidates: string[],
+    twitchVotes: number[],
+  ): string {
     if (candidates.length === 1) {
       return candidates[0];
     }
 
-    const indexedCandidates = candidates.map((targetNickname, index) => ({ index: index + 1, targetNickname }));
+    const indexedCandidates = candidates.map((targetNickname, index) => ({
+      index: index + 1,
+      targetNickname,
+    }));
     const counts = new Map<string, number>();
 
     for (const vote of twitchVotes) {
-      const matched = indexedCandidates.find((candidate) => candidate.index === vote);
+      const matched = indexedCandidates.find(
+        (candidate) => candidate.index === vote,
+      );
       if (!matched) {
         continue;
       }
-      counts.set(matched.targetNickname, (counts.get(matched.targetNickname) ?? 0) + 1);
+      counts.set(
+        matched.targetNickname,
+        (counts.get(matched.targetNickname) ?? 0) + 1,
+      );
     }
 
     if (counts.size > 0) {
@@ -455,12 +533,16 @@ export class GameSessionService {
     }
 
     const maxVotes = Math.max(...activeTargets.map((item) => item.votes));
-    return activeTargets.filter((item) => item.votes === maxVotes).map((item) => item.target);
+    return activeTargets
+      .filter((item) => item.votes === maxVotes)
+      .map((item) => item.target);
   }
 
   private buildTally(votes: VoteRecord[], alivePlayers: string[]): VoteTally[] {
     return alivePlayers.map((target) => {
-      const voters = votes.filter((item) => item.target === target).map((item) => item.voter);
+      const voters = votes
+        .filter((item) => item.target === target)
+        .map((item) => item.voter);
       return {
         target,
         votes: voters.length,
@@ -469,7 +551,10 @@ export class GameSessionService {
     });
   }
 
-  private drawPlayerActionCards(cards: ActionCardRecord[], amount: number): ActionCardRecord[] {
+  private drawPlayerActionCards(
+    cards: ActionCardRecord[],
+    amount: number,
+  ): ActionCardRecord[] {
     if (cards.length === 0) {
       return [];
     }
@@ -505,7 +590,9 @@ export class GameSessionService {
 
     const pending = [...this.currentGame.revealRound.pendingNicknames];
     for (const nickname of pending) {
-      const profile = this.currentGame.playerProfiles.find((item) => item.nickname === nickname);
+      const profile = this.currentGame.playerProfiles.find(
+        (item) => item.nickname === nickname,
+      );
       if (!profile) {
         continue;
       }
@@ -514,7 +601,8 @@ export class GameSessionService {
         continue;
       }
 
-      const randomTrait = hiddenTraits[Math.floor(Math.random() * hiddenTraits.length)];
+      const randomTrait =
+        hiddenTraits[Math.floor(Math.random() * hiddenTraits.length)];
       randomTrait.revealed = true;
     }
 
@@ -551,7 +639,14 @@ export class GameSessionService {
   }
 
   private buildInitialTraits(): PlayerTraitState[] {
-    const categories: TraitCategory[] = ['profession', 'phobia', 'hobby', 'luggage', 'fact', 'health'];
+    const categories: TraitCategory[] = [
+      'profession',
+      'phobia',
+      'hobby',
+      'luggage',
+      'fact',
+      'health',
+    ];
     return categories.map((category) => ({
       category,
       value: this.pickTraitValue(this.traitsService.list(category)),
@@ -564,6 +659,8 @@ export class GameSessionService {
       return 'Unknown';
     }
 
-    return records[Math.floor(Math.random() * records.length)]?.value ?? 'Unknown';
+    return (
+      records[Math.floor(Math.random() * records.length)]?.value ?? 'Unknown'
+    );
   }
 }

@@ -32,6 +32,11 @@ class UpdateSceneDto {
   imageUrl?: string;
 }
 
+type UploadedSceneFile = {
+  originalname: string;
+  filename: string;
+};
+
 @Controller()
 export class AdminScenesController {
   constructor(private readonly adminScenesService: AdminScenesService) {}
@@ -40,15 +45,26 @@ export class AdminScenesController {
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
-        destination: (_req, _file, cb) => cb(null, join(__dirname, '..', '..', 'uploads', 'scenes')),
-        filename: (_req, file, cb) => {
+        destination: (
+          _req: unknown,
+          _file: unknown,
+          cb: (error: Error | null, destination: string) => void,
+        ) => cb(null, join(__dirname, '..', '..', 'uploads', 'scenes')),
+        filename: (
+          _req: unknown,
+          file: { originalname?: string },
+          cb: (error: Error | null, filename: string) => void,
+        ) => {
           const safeExt = extname(file.originalname || '.png') || '.png';
-          cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`);
+          cb(
+            null,
+            `${Date.now()}-${Math.random().toString(36).slice(2, 10)}${safeExt}`,
+          );
         },
       }),
     }),
   )
-  uploadSceneImage(@UploadedFile() file?: Express.Multer.File) {
+  uploadSceneImage(@UploadedFile() file?: UploadedSceneFile) {
     if (!file) {
       throw new BadRequestException('file is required');
     }
@@ -70,7 +86,10 @@ export class AdminScenesController {
   }
 
   @Patch('admin/scenes/:id')
-  updateScene(@Param('id', ParseIntPipe) id: number, @Body() body: UpdateSceneDto) {
+  updateScene(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() body: UpdateSceneDto,
+  ) {
     return this.adminScenesService.update(id, body);
   }
 
