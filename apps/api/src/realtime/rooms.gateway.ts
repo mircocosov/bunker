@@ -10,6 +10,8 @@ import { clientEvents } from '@bunker/shared';
 import { RoomRegistryService } from './room-registry.service';
 import { RoomNotFoundError } from './errors';
 import { ActionDedupeService } from './action-dedupe.service';
+import { ChatFilterService } from '../chat-filter/chat-filter.service';
+import { BlacklistService } from '../blacklist/blacklist.service';
 
 @WebSocketGateway({ namespace: '/rooms', cors: { origin: '*' } })
 export class RoomsGateway {
@@ -19,6 +21,8 @@ export class RoomsGateway {
   constructor(
     private readonly roomRegistry: RoomRegistryService,
     private readonly actionDedupe: ActionDedupeService,
+    private readonly chatFilterService: ChatFilterService,
+    private readonly blacklistService: BlacklistService,
   ) {}
 
   private dedupeKey(userId: string, actionId: string) {
@@ -34,6 +38,14 @@ export class RoomsGateway {
     }
 
     const userId = socket.data.userId ?? socket.id;
+    if (this.blacklistService.isBanned(userId)) {
+      socket.emit('system.warning', {
+        event: 'system.warning',
+        message: 'BANNED_OBSERVER_ONLY',
+        details: { nickname: userId },
+      });
+      return;
+    }
     const key = this.dedupeKey(userId, parsed.data.action_id);
     if (this.actionDedupe.isDuplicate(key)) {
       return;
@@ -89,5 +101,23 @@ export class RoomsGateway {
       }
       throw error;
     }
+  }
+
+  @SubscribeMessage('match.chat_send')
+  handleChatSend(@MessageBody() payload: unknown, @ConnectedSocket() socket: Socket) {
+    const parsed = clientEvents.chatSend.safeParse(payload);
+    if (!parsed.success) {
+      socket.emit('system.warning', { event: 'system.warning', message: 'Invalid match.chat_send payload' });
+      return;
+    }
+
+    const maskedText = this.chatFilterService.maskText(parsed.data.text);
+
+    this.server.emit('match.chat_message', {
+      event: 'match.chat_message',
+      match_id: parsed.data.match_id,
+      user_id: socket.data.userId ?? socket.id,
+      text: maskedText,
+    });
   }
 }
