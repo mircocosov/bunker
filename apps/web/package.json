@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "test": "echo 'no tests yet'"
+    "test": "node --test test/routes-smoke.test.mjs"
   },
   "dependencies": {
     "next": "14.2.16",

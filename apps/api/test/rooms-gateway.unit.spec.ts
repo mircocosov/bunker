@@ -1,6 +1,8 @@
 import { ActionDedupeService } from '../src/realtime/action-dedupe.service';
 import { RoomRegistryService } from '../src/realtime/room-registry.service';
 import { RoomsGateway } from '../src/realtime/rooms.gateway';
+import { ChatFilterService } from '../src/chat-filter/chat-filter.service';
+import { BlacklistService } from '../src/blacklist/blacklist.service';
 
 function makeSocket(id = 's1') {
   return {
@@ -13,7 +15,7 @@ function makeSocket(id = 's1') {
 
 describe('RoomsGateway', () => {
   it('emits warning on invalid room.join payload', () => {
-    const gateway = new RoomsGateway(new RoomRegistryService(), new ActionDedupeService());
+    const gateway = new RoomsGateway(new RoomRegistryService(), new ActionDedupeService(), new ChatFilterService(), new BlacklistService());
     gateway.server = { to: jest.fn(() => ({ emit: jest.fn() })) } as any;
     const socket = makeSocket();
 
@@ -26,7 +28,7 @@ describe('RoomsGateway', () => {
   });
 
   it('joins room and emits room.state_updated on valid room.join', () => {
-    const gateway = new RoomsGateway(new RoomRegistryService(), new ActionDedupeService());
+    const gateway = new RoomsGateway(new RoomRegistryService(), new ActionDedupeService(), new ChatFilterService(), new BlacklistService());
     const emit = jest.fn();
     gateway.server = { to: jest.fn(() => ({ emit })) } as any;
     const socket = makeSocket();
@@ -45,7 +47,7 @@ describe('RoomsGateway', () => {
   });
 
   it('unknown room on ready emits ROOM_NOT_FOUND warning', () => {
-    const gateway = new RoomsGateway(new RoomRegistryService(), new ActionDedupeService());
+    const gateway = new RoomsGateway(new RoomRegistryService(), new ActionDedupeService(), new ChatFilterService(), new BlacklistService());
     gateway.server = { to: jest.fn(() => ({ emit: jest.fn() })) } as any;
     const socket = makeSocket();
 
@@ -59,7 +61,7 @@ describe('RoomsGateway', () => {
   });
 
   it('duplicate action_id does not emit room.state_updated twice', () => {
-    const gateway = new RoomsGateway(new RoomRegistryService(), new ActionDedupeService());
+    const gateway = new RoomsGateway(new RoomRegistryService(), new ActionDedupeService(), new ChatFilterService(), new BlacklistService());
     const emit = jest.fn();
     gateway.server = { to: jest.fn(() => ({ emit })) } as any;
     const socket = makeSocket();
@@ -68,5 +70,27 @@ describe('RoomsGateway', () => {
     gateway.handleJoin({ event: 'room.join', action_id: 'dup-1', roomCode: 'ABC' }, socket);
 
     expect(emit).toHaveBeenCalledTimes(1);
+  });
+
+  it('banned user cannot join and gets observer-only warning', () => {
+    const blacklist = new BlacklistService();
+    blacklist.create({ nickname: 'banned-user', reason: 'toxicity' });
+
+    const gateway = new RoomsGateway(new RoomRegistryService(), new ActionDedupeService(), new ChatFilterService(), blacklist);
+    const emit = jest.fn();
+    gateway.server = { to: jest.fn(() => ({ emit })), emit: jest.fn() } as any;
+
+    const socket = makeSocket();
+    socket.data.userId = 'banned-user';
+
+    gateway.handleJoin({ event: 'room.join', action_id: 'ban-1', roomCode: 'ABC' }, socket);
+
+    expect(socket.join).not.toHaveBeenCalled();
+    expect(socket.emit).toHaveBeenCalledWith('system.warning', {
+      event: 'system.warning',
+      message: 'BANNED_OBSERVER_ONLY',
+      details: { nickname: 'banned-user' },
+    });
+    expect(emit).not.toHaveBeenCalled();
   });
 });

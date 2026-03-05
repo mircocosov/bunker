@@ -9,7 +9,7 @@ describe('Auth + Health integration', () => {
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
     app = moduleRef.createNestApplication();
-    app.setGlobalPrefix('api/v1');
+    app.setGlobalPrefix('bunker/api');
     await app.init();
   });
 
@@ -17,21 +17,21 @@ describe('Auth + Health integration', () => {
     await app.close();
   });
 
-  it('GET /api/v1/health returns ok', async () => {
-    const res = await request(app.getHttpServer()).get('/api/v1/health').expect(200);
+  it('GET /bunker/api/health returns ok', async () => {
+    const res = await request(app.getHttpServer()).get('/bunker/api/health').expect(200);
     expect(res.body).toEqual({ status: 'ok' });
   });
 
-  it('POST /api/v1/auth/guest returns guest token payload', async () => {
-    const res = await request(app.getHttpServer()).post('/api/v1/auth/guest').send({}).expect(201);
+  it('POST /bunker/api/auth/guest returns guest token payload', async () => {
+    const res = await request(app.getHttpServer()).post('/bunker/api/auth/guest').send({}).expect(201);
     expect(res.body.role).toBe('guest');
     expect(res.body.user_id).toContain('guest_');
     expect(typeof res.body.access_token).toBe('string');
   });
 
-  it('POST /api/v1/auth/login returns player token payload', async () => {
+  it('POST /bunker/api/auth/login returns player token payload', async () => {
     const res = await request(app.getHttpServer())
-      .post('/api/v1/auth/login')
+      .post('/bunker/api/auth/login')
       .send({ email: 'qa@example.com', password: 'secret' })
       .expect(201);
 
